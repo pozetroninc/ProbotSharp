@@ -1,0 +1,58 @@
+# Build artifacts
+**/bin/
+**/obj/
+**/out/
+
+# IDE directories
+**/.vs/
+**/.vscode/
+**/.idea/
+*.swp
+*.swo
+*~
+
+# Test results
+**/TestResults/
+**/test-output.log
+**/test-run-output.log
+
+# NuGet
+**/*.nupkg
+**/*.snupkg
+**/packages/
+
+# User-specific files
+**/*.user
+**/*.userosscache
+**/*.suo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation (not needed in image)
+**/*.md
+**/docs/
+
+# CI/CD
+.github/
+**/.husky/
+
+# Environment files (may contain secrets)
+**/.env
+**/.env.*
+!**/.env.example
+
+# Probot-specific
+**/private-key.pem
+**/fixtures/
+
+# Docker
+**/.dockerignore
+**/Dockerfile
+**/docker-compose*.yml

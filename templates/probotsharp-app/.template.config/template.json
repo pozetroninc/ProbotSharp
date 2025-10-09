@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "ProbotSharp Contributors",
+  "classifications": [
+    "GitHub",
+    "Bot",
+    "Probot",
+    "Webhook",
+    "GitHub App"
+  ],
+  "identity": "ProbotSharp.Template.App",
+  "name": "Probot Sharp App",
+  "shortName": "probotsharp-app",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "MyBot",
+  "preferNameDirectory": true,
+  "symbols": {
+    "AppName": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "MyBot",
+      "replaces": "MyBot",
+      "fileRename": "MyBot",
+      "description": "The name of the bot application"
+    },
+    "Description": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "A Probot Sharp bot",
+      "replaces": "BOT_DESCRIPTION",
+      "description": "Description of what the bot does"
+    },
+    "Author": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "Your Name",
+      "replaces": "BOT_AUTHOR",
+      "description": "Author name"
+    },
+    "AppId": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "123456",
+      "replaces": "GITHUB_APP_ID",
+      "description": "GitHub App ID (can be changed in .env later)"
+    }
+  },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "exclude": [
+            ".template.config/**/*",
+            "**/*.filelist",
+            "**/*.user",
+            "**/*.lock.json",
+            "**/bin/**",
+            "**/obj/**"
+          ]
+        }
+      ]
+    }
+  ]
+}

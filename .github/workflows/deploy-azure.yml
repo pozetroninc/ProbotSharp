@@ -1,0 +1,86 @@
+name: Deploy to Azure Web Apps
+
+on:
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: probotsharp-production
+  AZURE_CONTAINER_REGISTRY: probotsharp
+  ACR_IMAGE_NAME: probotsharp
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy to Azure
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and push Docker image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -f src/ProbotSharp.Bootstrap.Api/Dockerfile -t ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.ACR_IMAGE_NAME }}:$IMAGE_TAG .
+          docker tag ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.ACR_IMAGE_NAME }}:$IMAGE_TAG ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.ACR_IMAGE_NAME }}:latest
+          docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.ACR_IMAGE_NAME }}:$IMAGE_TAG
+          docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.ACR_IMAGE_NAME }}:latest
+
+      - name: Deploy to Azure Web App for Containers
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          images: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.ACR_IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Configure App Settings
+        run: |
+          az webapp config appsettings set \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --settings \
+              ASPNETCORE_ENVIRONMENT=Production \
+              WEBSITES_PORT=8080 \
+              WEBSITES_ENABLE_APP_SERVICE_STORAGE=false \
+              ProbotSharp__Adapters__Cache__Provider=Redis \
+              ProbotSharp__Adapters__Idempotency__Provider=Redis \
+              ProbotSharp__Adapters__Persistence__Provider=PostgreSQL \
+              ProbotSharp__Adapters__ReplayQueue__Provider=InMemory \
+              ProbotSharp__Adapters__DeadLetterQueue__Provider=Database \
+              ProbotSharp__Adapters__Metrics__Provider=OpenTelemetry \
+              ProbotSharp__Adapters__Tracing__Provider=OpenTelemetry
+
+      - name: Configure Connection Strings
+        run: |
+          az webapp config connection-string set \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --connection-string-type Custom \
+            --settings \
+              ProbotSharp="${{ secrets.AZURE_DATABASE_CONNECTION_STRING }}"
+
+      - name: Run database migrations
+        run: |
+          dotnet tool install --global dotnet-ef
+          CONNECTION_STRING="${{ secrets.AZURE_DATABASE_CONNECTION_STRING }}"
+          dotnet ef database update --project src/ProbotSharp.Infrastructure --startup-project src/ProbotSharp.Bootstrap.Api --connection "$CONNECTION_STRING"
+
+      - name: Restart Web App
+        run: |
+          az webapp restart \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }}
+
+      - name: Azure logout
+        run: az logout

@@ -1,0 +1,34 @@
+@{
+    ViewData["Title"] = "Register on GitHub";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var manifestJson = ViewData["ManifestJson"] as string ?? "";
+    var createAppUrl = ViewData["CreateAppUrl"] as string ?? "";
+    var appName = ViewData["AppName"] as string ?? "";
+}
+
+<h1>Ready to Register Your App</h1>
+<p>Your GitHub App manifest has been generated. Click the button below to register your app on GitHub.</p>
+
+<h2>App Manifest</h2>
+<p>This is the configuration that will be sent to GitHub:</p>
+
+<div class="code-block">
+    <pre>@manifestJson</pre>
+</div>
+
+<h2>Next Steps</h2>
+<ol class="steps">
+    <li>Click "Register on GitHub" below</li>
+    <li>Review the permissions and click "Create GitHub App"</li>
+    <li>You'll be redirected back here to complete the setup</li>
+</ol>
+
+<form method="post" action="@createAppUrl" style="margin-top: 24px;">
+    <input type="hidden" name="manifest" value='@manifestJson' />
+    <button type="submit" class="btn btn-primary">Register on GitHub</button>
+    <a href="/setup/new" class="btn btn-secondary" style="margin-left: 8px;">Back to Configuration</a>
+</form>
+
+<div style="margin-top: 24px; padding: 16px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;">
+    <strong>Note:</strong> You'll need to be logged into GitHub to register the app. The setup will continue after GitHub redirects you back to this application.
+</div>

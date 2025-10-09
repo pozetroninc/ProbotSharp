@@ -1,0 +1,133 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: probotsharp-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-probotsharp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev-password}
+      POSTGRES_DB: ${POSTGRES_DB:-probotsharp}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-probotsharp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - probotsharp-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: probotsharp-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - probotsharp-network
+    restart: unless-stopped
+
+  probotsharp-api:
+    build:
+      context: .
+      dockerfile: src/ProbotSharp.Bootstrap.Api/Dockerfile
+    container_name: probotsharp-api
+    ports:
+      - "${API_PORT:-8080}:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__ProbotSharp=Host=postgres;Port=5432;Database=${POSTGRES_DB:-probotsharp};Username=${POSTGRES_USER:-probotsharp};Password=${POSTGRES_PASSWORD:-dev-password}
+      - ProbotSharp__GitHub__AppId=${PROBOTSHARP_GITHUB_APPID}
+      - ProbotSharp__GitHub__WebhookSecret=${PROBOTSHARP_GITHUB_WEBHOOKSECRET:-development}
+      - ProbotSharp__GitHub__PrivateKey=${PROBOTSHARP_GITHUB_PRIVATEKEY}
+      - ProbotSharp__GitHub__ClientId=${PROBOTSHARP_GITHUB_CLIENTID:-}
+      - ProbotSharp__GitHub__ClientSecret=${PROBOTSHARP_GITHUB_CLIENTSECRET:-}
+      - ProbotSharp__Database__Provider=PostgreSQL
+      - ProbotSharp__Database__EnableSensitiveDataLogging=${PROBOTSHARP_DB_ENABLE_SENSITIVE_LOGGING:-false}
+      - ProbotSharp__Database__EnableDetailedErrors=${PROBOTSHARP_DB_ENABLE_DETAILED_ERRORS:-true}
+      - ProbotSharp__Database__CommandTimeout=${PROBOTSHARP_DB_COMMAND_TIMEOUT:-30}
+      - ProbotSharp__Database__MaxRetryCount=${PROBOTSHARP_DB_MAX_RETRY_COUNT:-3}
+      - ProbotSharp__Database__MaxRetryDelay=${PROBOTSHARP_DB_MAX_RETRY_DELAY:-30}
+      - ProbotSharp__Adapters__Cache__Provider=Redis
+      - ProbotSharp__Adapters__Cache__Options__ConnectionString=redis:6379
+      - ProbotSharp__Adapters__Cache__Options__ExpirationMinutes=60
+      - ProbotSharp__Adapters__Idempotency__Provider=Redis
+      - ProbotSharp__Adapters__Idempotency__Options__ConnectionString=redis:6379
+      - ProbotSharp__Adapters__Idempotency__Options__ExpirationHours=24
+      - ProbotSharp__Adapters__Persistence__Provider=PostgreSQL
+      - ProbotSharp__Adapters__ReplayQueue__Provider=FileSystem
+      - ProbotSharp__Adapters__ReplayQueue__Options__Path=/app/replay-queue
+      - ProbotSharp__Adapters__ReplayQueue__Options__MaxRetryAttempts=3
+      - ProbotSharp__Adapters__ReplayQueue__Options__RetryBaseDelayMs=1000
+      - ProbotSharp__Adapters__ReplayQueue__Options__PollIntervalMs=1000
+      - ProbotSharp__Adapters__DeadLetterQueue__Provider=FileSystem
+      - ProbotSharp__Adapters__DeadLetterQueue__Options__Path=/app/dead-letter-queue
+      - ProbotSharp__Adapters__DeadLetterQueue__Options__RetentionDays=7
+      - ProbotSharp__Adapters__Metrics__Provider=NoOp
+      - ProbotSharp__Adapters__Tracing__Provider=NoOp
+      - ProbotSharp__Resilience__HttpTimeout__TimeoutSeconds=${PROBOTSHARP_HTTP_TIMEOUT:-30}
+      - ProbotSharp__Resilience__CircuitBreaker__FailureRatio=${PROBOTSHARP_CB_FAILURE_RATIO:-0.5}
+      - ProbotSharp__Resilience__CircuitBreaker__MinimumThroughput=${PROBOTSHARP_CB_MIN_THROUGHPUT:-5}
+      - ProbotSharp__Resilience__CircuitBreaker__BreakDurationSeconds=${PROBOTSHARP_CB_BREAK_DURATION:-30}
+      - ProbotSharp__Resilience__CircuitBreaker__SamplingDurationSeconds=${PROBOTSHARP_CB_SAMPLING_DURATION:-60}
+      - ProbotSharp__Resilience__Retry__MaxRetryAttempts=${PROBOTSHARP_RETRY_MAX_ATTEMPTS:-3}
+      - ProbotSharp__Resilience__Retry__BaseDelaySeconds=${PROBOTSHARP_RETRY_BASE_DELAY:-2}
+      - ProbotSharp__Resilience__Retry__MaxDelaySeconds=${PROBOTSHARP_RETRY_MAX_DELAY:-30}
+      - ProbotSharp__Resilience__Retry__UseJitter=${PROBOTSHARP_RETRY_USE_JITTER:-true}
+      - ProbotSharp__Features__EnableWebhookReplay=${PROBOTSHARP_FEATURE_WEBHOOK_REPLAY:-true}
+      - ProbotSharp__Features__EnableMetrics=${PROBOTSHARP_FEATURE_METRICS:-false}
+      - ProbotSharp__Features__EnableHealthChecks=${PROBOTSHARP_FEATURE_HEALTH_CHECKS:-true}
+      - ProbotSharp__Features__EnableDetailedErrors=${PROBOTSHARP_FEATURE_DETAILED_ERRORS:-true}
+      - Logging__LogLevel__Default=${LOG_LEVEL_DEFAULT:-Information}
+      - Logging__LogLevel__Microsoft.AspNetCore=${LOG_LEVEL_ASPNETCORE:-Warning}
+      - Logging__LogLevel__Microsoft.EntityFrameworkCore=${LOG_LEVEL_EF:-Warning}
+      - Logging__LogLevel__ProbotSharp=${LOG_LEVEL_PROBOTSHARP:-Debug}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+      - ./replay-queue:/app/replay-queue
+      - ./dead-letter-queue:/app/dead-letter-queue
+      - ${PROBOTSHARP_PRIVATE_KEY_FILE:-./private-key.pem}:/app/private-key.pem:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - probotsharp-network
+    restart: unless-stopped
+
+  smee:
+    image: deltaprojects/smee-client
+    container_name: probotsharp-smee
+    command: --url ${SMEE_URL} --target http://probotsharp-api:8080/webhooks
+    depends_on:
+      probotsharp-api:
+        condition: service_healthy
+    networks:
+      - probotsharp-network
+    restart: unless-stopped
+    profiles:
+      - smee
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  probotsharp-network:
+    driver: bridge

@@ -1,0 +1,63 @@
+# Build outputs
+**/bin/
+**/obj/
+**/out/
+**/publish/
+
+# IDE and editor files
+**/.idea/
+**/.vs/
+**/.vscode/
+**/.cursor/
+**/*.user
+**/*.suo
+**/*.userprefs
+**/*.csproj.user
+*.swp
+*.sln.ide
+
+# Git files
+.git
+.gitignore
+.gitmodules
+.github/
+
+# Docker files (avoid recursion)
+Dockerfile*
+.dockerignore
+docker-compose*
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Test and coverage
+tests/
+coverage-report/
+coverage-report-final/
+coverage-results/
+coverage-results-final/
+coverage-before/
+coverage-final/
+**/*.coverage
+**/*.coveragexml
+**/TestResults/
+
+# Documentation and project files
+docs/
+*.md
+!README.md
+*.log
+**/logs/
+
+# Node modules (if any)
+node_modules/
+
+# Other
+.aidocs/
+.claude/
+deploy/
+pbcopy
+**/.DS_Store
+**/Thumbs.db

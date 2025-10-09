@@ -1,0 +1,34 @@
+services:
+  minimalbot:
+    image: probot-sharp-minimalbot:latest
+    container_name: probot-sharp-minimalbot
+    ports:
+      - "5000:5000"
+    environment:
+      - ASPNETCORE_URLS=http://+:5000
+      - ProbotSharp__App__AppId=123456
+      - ProbotSharp__App__WebhookSecret=development
+      - ProbotSharp__App__PrivateKeyPath=/app/test-private-key.pem
+      # In-memory configuration (no infrastructure dependencies)
+      - ProbotSharp__Adapters__Cache__Provider=Memory
+      - ProbotSharp__Adapters__Idempotency__Provider=Database
+      - ProbotSharp__Adapters__Persistence__Provider=InMemory
+      - ProbotSharp__Adapters__ReplayQueue__Provider=InMemory
+      - ProbotSharp__Adapters__DeadLetterQueue__Provider=InMemory
+      - ProbotSharp__Adapters__Metrics__Provider=NoOp
+      - ProbotSharp__Adapters__Tracing__Provider=NoOp
+      - ProbotSharp__Tracing__Enabled=false
+    volumes:
+      # Mount private key for testing
+      - ./test-private-key.pem:/app/test-private-key.pem:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+networks:
+  default:
+    name: probot-network

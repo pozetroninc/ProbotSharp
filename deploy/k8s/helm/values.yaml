@@ -1,0 +1,141 @@
+replicaCount: 2
+
+image:
+  repository: probotsharp
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: probotsharp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: probotsharp-tls
+      hosts:
+        - probotsharp.example.com
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+persistence:
+  enabled: true
+  storageClass: "standard"
+  accessMode: ReadWriteMany
+  size: 10Gi
+
+config:
+  aspnetcoreEnvironment: Production
+  otlpEndpoint: "http://otel-collector:4317"
+  adapters:
+    cache:
+      provider: Redis
+    idempotency:
+      provider: Redis
+    persistence:
+      provider: PostgreSQL
+    replayQueue:
+      provider: InMemory
+      maxRetryAttempts: 5
+      retryBaseDelayMs: 2000
+      pollIntervalMs: 1000
+    deadLetterQueue:
+      provider: Database
+      retentionDays: 30
+    metrics:
+      provider: OpenTelemetry
+    tracing:
+      provider: OpenTelemetry
+
+secrets:
+  databaseConnectionString: ""
+  github:
+    appId: ""
+    webhookSecret: ""
+    privateKey: ""
+  redis:
+    connectionString: ""
+
+postgresql:
+  enabled: true
+  auth:
+    username: probotsharp
+    password: ""
+    database: probotsharp
+  primary:
+    persistence:
+      enabled: true
+      size: 20Gi
+
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi

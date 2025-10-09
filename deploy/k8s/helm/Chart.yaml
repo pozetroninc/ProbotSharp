@@ -1,0 +1,16 @@
+apiVersion: v2
+name: probotsharp
+description: A Helm chart for ProbotSharp - GitHub App automation framework
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - github
+  - probot
+  - automation
+  - webhooks
+home: https://github.com/yourusername/probotsharp
+sources:
+  - https://github.com/yourusername/probotsharp
+maintainers:
+  - name: ProbotSharp Contributors

@@ -1,0 +1,92 @@
+# Test values for CI/CD Helm chart validation - uses minimal resources and mocked dependencies
+
+image:
+  repository: nginxinc/nginx-unprivileged  # Use nginx-unprivileged for non-root compatibility
+  tag: "alpine"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: false
+
+autoscaling:
+  enabled: false
+
+persistence:
+  enabled: false
+
+postgresql:
+  enabled: false
+
+redis:
+  enabled: false
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+
+serviceAccount:
+  create: true
+  annotations: {}
+
+config:
+  aspnetcoreEnvironment: Development
+  adapters:
+    cache:
+      provider: Memory
+    idempotency:
+      provider: Memory
+    persistence:
+      provider: InMemory
+    replayQueue:
+      provider: InMemory
+      maxRetryAttempts: 3
+    metrics:
+      provider: NoOp
+    tracing:
+      provider: NoOp
+
+secrets:
+  databaseConnectionString: "Host=localhost;Database=test"
+  github:
+    appId: "12345"
+    webhookSecret: "test-webhook-secret"
+    privateKey: "test-key"
+  redis:
+    connectionString: "localhost:6379"
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5

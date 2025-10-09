@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: probotsharp-config
+  namespace: probotsharp
+  labels:
+    app: probotsharp
+    app.kubernetes.io/name: probotsharp
+data:
+  # =============================================================================
+  # Adapter Configuration - Modern Provider Pattern
+  # =============================================================================
+  # See: docs/AdapterConfiguration.md for complete guide
+  # Note: Environment variable format uses double underscore (__) for hierarchy
+
+  # --- Cache Adapter ---
+  ProbotSharp__Adapters__Cache__Provider: "Redis"
+  ProbotSharp__Adapters__Cache__Options__ExpirationMinutes: "60"
+
+  # --- Idempotency Adapter ---
+  ProbotSharp__Adapters__Idempotency__Provider: "Redis"
+  ProbotSharp__Adapters__Idempotency__Options__ExpirationHours: "24"
+
+  # --- Persistence Adapter ---
+  ProbotSharp__Adapters__Persistence__Provider: "PostgreSQL"
+  ProbotSharp__Adapters__Persistence__Options__EnableSensitiveDataLogging: "false"
+  ProbotSharp__Adapters__Persistence__Options__CommandTimeout: "30"
+
+  # --- Replay Queue Adapter ---
+  ProbotSharp__Adapters__ReplayQueue__Provider: "InMemory"
+  ProbotSharp__Adapters__ReplayQueue__Options__MaxRetryAttempts: "5"
+  ProbotSharp__Adapters__ReplayQueue__Options__RetryBaseDelayMs: "2000"
+  ProbotSharp__Adapters__ReplayQueue__Options__PollIntervalMs: "1000"
+
+  # --- Dead Letter Queue Adapter ---
+  ProbotSharp__Adapters__DeadLetterQueue__Provider: "Database"
+  ProbotSharp__Adapters__DeadLetterQueue__Options__RetentionDays: "30"
+
+  # --- Metrics Adapter ---
+  ProbotSharp__Adapters__Metrics__Provider: "OpenTelemetry"
+  ProbotSharp__Adapters__Metrics__Options__MeterName: "ProbotSharp"
+  ProbotSharp__Adapters__Metrics__Options__Version: "1.0.0"
+  ProbotSharp__Adapters__Metrics__Options__OtlpEndpoint: "http://otel-collector:4317"
+
+  # --- Tracing Adapter ---
+  ProbotSharp__Adapters__Tracing__Provider: "OpenTelemetry"
+  ProbotSharp__Adapters__Tracing__Options__OtlpEndpoint: "http://otel-collector:4317"

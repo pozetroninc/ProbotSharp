@@ -1,0 +1,14 @@
+**/.dockerignore
+**/.git
+**/.gitignore
+**/.vscode
+**/bin
+**/obj
+**/out
+**/TestResults
+**/*.md
+**/node_modules
+**/.env
+**/appsettings.Development.json
+**/appsettings.*.json
+!appsettings.json

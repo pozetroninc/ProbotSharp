@@ -1,0 +1,52 @@
+@{
+    ViewData["Title"] = "Configure Your App";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h1>Configure Your GitHub App</h1>
+<p>Fill in the details below to configure your GitHub App. These can be changed later in your GitHub App settings.</p>
+
+<form method="post" action="/setup/manifest">
+    <div class="form-group">
+        <label for="AppName">App Name *</label>
+        <input type="text" id="AppName" name="AppName" value="@ViewData["AppName"]" required />
+        <small style="color: #586069;">Choose a unique name for your GitHub App</small>
+    </div>
+
+    <div class="form-group">
+        <label for="Description">Description</label>
+        <textarea id="Description" name="Description">@ViewData["Description"]</textarea>
+        <small style="color: #586069;">A brief description of what your app does</small>
+    </div>
+
+    <div class="form-group">
+        <label for="Homepage">Homepage URL (optional)</label>
+        <input type="text" id="Homepage" name="Homepage" value="@ViewData["Homepage"]" />
+        <small style="color: #586069;">URL where users can learn more about your app</small>
+    </div>
+
+    <div class="form-group">
+        <label for="WebhookProxyUrl">Webhook Proxy URL (optional)</label>
+        <input type="text" id="WebhookProxyUrl" name="WebhookProxyUrl" value="@ViewData["WebhookProxyUrl"]" />
+        <small style="color: #586069;">If using Smee.io or another webhook proxy, enter the URL here</small>
+    </div>
+
+    <div class="checkbox">
+        <label>
+            <input type="checkbox" name="IsPublic" value="true" checked />
+            Make this app public (others can install it)
+        </label>
+    </div>
+
+    <div style="margin-top: 24px;">
+        <button type="submit" class="btn btn-primary">Generate Manifest</button>
+        <a href="/setup" class="btn btn-secondary" style="margin-left: 8px;">Back</a>
+    </div>
+</form>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-error" style="margin-top: 16px;">
+        @ViewBag.Error
+    </div>
+}

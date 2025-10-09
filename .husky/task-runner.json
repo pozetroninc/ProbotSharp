@@ -1,0 +1,86 @@
+{
+  "$schema": "https://alirezanet.github.io/Husky.Net/schema.json",
+  "tasks": [
+    {
+      "name": "kubeconform",
+      "group": "pre-commit",
+      "command": "bash",
+      "args": [
+        "scripts/run-kubeconform.sh"
+      ],
+      "windows": {
+        "command": "pwsh",
+        "args": [
+          "-NoLogo",
+          "-NoProfile",
+          "-File",
+          "scripts/run-kubeconform.ps1"
+        ]
+      }
+    },
+    {
+      "name": "verify-local-links",
+      "group": "pre-commit",
+      "command": "python3",
+      "args": [
+        "scripts/verify-local-links.py",
+        "--exclude",
+        "node_modules/",
+        ".git/",
+        ".aidocs/",
+        "TEST-MARKDOWN-VERIFIER.md"
+      ],
+      "windows": {
+        "command": "python",
+        "args": [
+          "scripts/verify-local-links.py",
+          "--exclude",
+          "node_modules/",
+          ".git/",
+          ".aidocs/",
+          "TEST-MARKDOWN-VERIFIER.md"
+        ]
+      }
+    },
+    {
+      "name": "verify-github-links",
+      "group": "pre-commit",
+      "command": "python3",
+      "args": [
+        "scripts/verify-github-links.py"
+      ],
+      "windows": {
+        "command": "python",
+        "args": [
+          "scripts/verify-github-links.py"
+        ]
+      }
+    },
+    {
+      "name": "verify-markdown-code",
+      "group": "pre-commit",
+      "command": "bash",
+      "args": [
+        "scripts/verify-markdown-code.sh"
+      ],
+      "windows": {
+        "command": "pwsh",
+        "args": [
+          "-NoLogo",
+          "-NoProfile",
+          "-File",
+          "scripts/verify-markdown-code.ps1"
+        ]
+      }
+    },
+    {
+      "name": "validate-k8s-workflows",
+      "group": "pre-commit",
+      "command": "bash",
+      "args": [
+        "-c",
+        "if git diff --cached --name-only | grep -qE '^deploy/k8s/|^.github/workflows/validate-kubernetes.yml'; then gh act pull_request -W .github/workflows/validate-kubernetes.yml -j validate-manifests; fi"
+      ]
+    }
+  ]
+}

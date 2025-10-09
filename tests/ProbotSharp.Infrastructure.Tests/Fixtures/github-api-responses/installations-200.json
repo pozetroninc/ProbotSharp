@@ -1,0 +1,84 @@
+[
+  {
+    "id": 1234567,
+    "account": {
+      "login": "octocat",
+      "id": 1,
+      "node_id": "MDQ6VXNlcjE=",
+      "avatar_url": "https://github.com/images/error/octocat_happy.gif",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/octocat",
+      "html_url": "https://github.com/octocat",
+      "type": "User",
+      "site_admin": false
+    },
+    "repository_selection": "selected",
+    "access_tokens_url": "https://api.github.com/app/installations/1234567/access_tokens",
+    "repositories_url": "https://api.github.com/installation/repositories",
+    "html_url": "https://github.com/organizations/octocat/settings/installations/1234567",
+    "app_id": 123456,
+    "app_slug": "my-test-app",
+    "target_id": 1,
+    "target_type": "User",
+    "permissions": {
+      "contents": "read",
+      "issues": "write",
+      "pull_requests": "write",
+      "metadata": "read"
+    },
+    "events": [
+      "issues",
+      "pull_request",
+      "push"
+    ],
+    "created_at": "2024-01-15T14:30:00Z",
+    "updated_at": "2024-01-20T10:15:00Z",
+    "single_file_name": null,
+    "has_multiple_single_files": false,
+    "single_file_paths": [],
+    "suspended_by": null,
+    "suspended_at": null
+  },
+  {
+    "id": 7654321,
+    "account": {
+      "login": "acme-org",
+      "id": 2,
+      "node_id": "MDEyOk9yZ2FuaXphdGlvbjI=",
+      "avatar_url": "https://avatars.githubusercontent.com/u/2?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/orgs/acme-org",
+      "html_url": "https://github.com/acme-org",
+      "type": "Organization",
+      "site_admin": false
+    },
+    "repository_selection": "all",
+    "access_tokens_url": "https://api.github.com/app/installations/7654321/access_tokens",
+    "repositories_url": "https://api.github.com/installation/repositories",
+    "html_url": "https://github.com/organizations/acme-org/settings/installations/7654321",
+    "app_id": 123456,
+    "app_slug": "my-test-app",
+    "target_id": 2,
+    "target_type": "Organization",
+    "permissions": {
+      "contents": "write",
+      "issues": "write",
+      "pull_requests": "write",
+      "metadata": "read",
+      "deployments": "write"
+    },
+    "events": [
+      "issues",
+      "pull_request",
+      "push",
+      "deployment"
+    ],
+    "created_at": "2024-02-01T09:00:00Z",
+    "updated_at": "2024-02-15T16:45:00Z",
+    "single_file_name": null,
+    "has_multiple_single_files": false,
+    "single_file_paths": [],
+    "suspended_by": null,
+    "suspended_at": null
+  }
+]

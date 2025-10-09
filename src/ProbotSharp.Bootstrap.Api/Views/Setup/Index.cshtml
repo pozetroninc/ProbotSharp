@@ -1,0 +1,33 @@
+@{
+    ViewData["Title"] = "Setup";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var isConfigured = (bool)(ViewData["IsConfigured"] ?? false);
+}
+
+@if (isConfigured)
+{
+    <div class="alert alert-success">
+        <strong>Setup Complete!</strong> Your GitHub App is already configured.
+    </div>
+    <h1>Your Probot App is Ready</h1>
+    <p>Your GitHub App has been successfully configured and is ready to receive webhooks.</p>
+    <p>You can now start building your app logic by creating event handlers.</p>
+    <a href="/" class="btn btn-primary">Go to Dashboard</a>
+}
+else
+{
+    <h1>Welcome to Probot Sharp</h1>
+    <p>To get started, you'll need to create a GitHub App. This wizard will guide you through the process.</p>
+
+    <h2>Setup Steps</h2>
+    <ol class="steps">
+        <li>Configure your GitHub App settings (name, description, etc.)</li>
+        <li>Generate an app manifest</li>
+        <li>Register your app on GitHub</li>
+        <li>Complete setup and start building!</li>
+    </ol>
+
+    <p>This process will take about 2-3 minutes.</p>
+
+    <a href="/setup/new" class="btn btn-primary">Get Started</a>
+}

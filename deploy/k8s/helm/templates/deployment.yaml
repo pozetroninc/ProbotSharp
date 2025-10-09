@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "probotsharp.fullname" . }}
+  labels:
+    {{- include "probotsharp.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "probotsharp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "probotsharp.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "probotsharp.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: {{ .Values.config.aspnetcoreEnvironment | quote }}
+            - name: ASPNETCORE_URLS
+              value: "http://+:{{ .Values.service.targetPort }}"
+            - name: ConnectionStrings__ProbotSharp
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "probotsharp.fullname" . }}-secrets
+                  key: database-connection-string
+            - name: ProbotSharp__AppId
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "probotsharp.fullname" . }}-secrets
+                  key: github-app-id
+            - name: ProbotSharp__WebhookSecret
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "probotsharp.fullname" . }}-secrets
+                  key: github-webhook-secret
+            - name: ProbotSharp__PrivateKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "probotsharp.fullname" . }}-secrets
+                  key: github-private-key
+            - name: ProbotSharp__Adapters__Cache__Options__ConnectionString
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "probotsharp.fullname" . }}-secrets
+                  key: redis-connection-string
+            - name: ProbotSharp__Adapters__Idempotency__Options__ConnectionString
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "probotsharp.fullname" . }}-secrets
+                  key: redis-connection-string
+            - name: ProbotSharp__Adapters__Persistence__Options__ConnectionString
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "probotsharp.fullname" . }}-secrets
+                  key: database-connection-string
+            - name: ProbotSharp__Adapters__Cache__Provider
+              value: {{ .Values.config.adapters.cache.provider | quote }}
+            - name: ProbotSharp__Adapters__Idempotency__Provider
+              value: {{ .Values.config.adapters.idempotency.provider | quote }}
+            - name: ProbotSharp__Adapters__Persistence__Provider
+              value: {{ .Values.config.adapters.persistence.provider | quote }}
+            - name: ProbotSharp__Adapters__ReplayQueue__Provider
+              value: {{ .Values.config.adapters.replayQueue.provider | quote }}
+            - name: ProbotSharp__Adapters__ReplayQueue__Options__MaxRetryAttempts
+              value: {{ .Values.config.adapters.replayQueue.maxRetryAttempts | quote }}
+            - name: ProbotSharp__Adapters__ReplayQueue__Options__RetryBaseDelayMs
+              value: {{ .Values.config.adapters.replayQueue.retryBaseDelayMs | quote }}
+            - name: ProbotSharp__Adapters__ReplayQueue__Options__PollIntervalMs
+              value: {{ .Values.config.adapters.replayQueue.pollIntervalMs | quote }}
+            - name: ProbotSharp__Adapters__DeadLetterQueue__Provider
+              value: {{ .Values.config.adapters.deadLetterQueue.provider | quote }}
+            - name: ProbotSharp__Adapters__DeadLetterQueue__Options__RetentionDays
+              value: {{ .Values.config.adapters.deadLetterQueue.retentionDays | quote }}
+            - name: ProbotSharp__Adapters__Metrics__Provider
+              value: {{ .Values.config.adapters.metrics.provider | quote }}
+            - name: ProbotSharp__Adapters__Tracing__Provider
+              value: {{ .Values.config.adapters.tracing.provider | quote }}
+            - name: ProbotSharp__Adapters__Metrics__Options__OtlpEndpoint
+              value: {{ .Values.config.otlpEndpoint | quote }}
+            - name: ProbotSharp__Adapters__Tracing__Options__OtlpEndpoint
+              value: {{ .Values.config.otlpEndpoint | quote }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "probotsharp.fullname" . }}-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: nginx-cache
+          emptyDir: {}

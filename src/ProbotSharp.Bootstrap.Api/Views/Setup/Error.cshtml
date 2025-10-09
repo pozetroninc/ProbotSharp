@@ -1,0 +1,29 @@
+@{
+    ViewData["Title"] = "Setup Error";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var error = ViewData["Error"] as string ?? "An error occurred during setup";
+}
+
+<div class="alert alert-error">
+    <strong>Setup Failed</strong>
+</div>
+
+<h1>Something Went Wrong</h1>
+<p>We encountered an error while setting up your GitHub App:</p>
+
+<div class="code-block">
+    <pre>@error</pre>
+</div>
+
+<h2>What You Can Do</h2>
+<ul style="margin-left: 40px; margin-bottom: 24px;">
+    <li>Check that you completed the GitHub App registration</li>
+    <li>Verify your internet connection</li>
+    <li>Check the application logs for more details</li>
+    <li>Try the setup process again</li>
+</ul>
+
+<div style="margin-top: 24px;">
+    <a href="/setup" class="btn btn-primary">Start Over</a>
+    <a href="/" class="btn btn-secondary" style="margin-left: 8px;">Go to Dashboard</a>
+</div>

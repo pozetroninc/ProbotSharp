@@ -1,0 +1,54 @@
+# Build artifacts
+bin/
+obj/
+out/
+
+# IDE directories
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test results
+TestResults/
+
+# NuGet packages
+*.nupkg
+*.snupkg
+packages/
+
+# User-specific files
+*.user
+*.userosscache
+*.suo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation (not needed in container)
+*.md
+docs/
+
+# CI/CD
+.github/
+
+# Environment files (may contain secrets)
+.env
+.env.*
+!.env.example
+
+# GitHub App credentials
+private-key.pem
+
+# Docker
+.dockerignore
+Dockerfile
+docker-compose*.yml

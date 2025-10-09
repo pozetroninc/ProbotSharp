@@ -1,0 +1,101 @@
+{
+  "family": "probotsharp",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/probotsharp-task-role",
+  "containerDefinitions": [
+    {
+      "name": "probotsharp",
+      "image": "${ECR_REPOSITORY_URI}:${IMAGE_TAG}",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "ASPNETCORE_ENVIRONMENT",
+          "value": "Production"
+        },
+        {
+          "name": "ASPNETCORE_URLS",
+          "value": "http://+:8080"
+        },
+        {
+          "name": "ProbotSharp__Adapters__Cache__Provider",
+          "value": "Redis"
+        },
+        {
+          "name": "ProbotSharp__Adapters__Idempotency__Provider",
+          "value": "Redis"
+        },
+        {
+          "name": "ProbotSharp__Adapters__Persistence__Provider",
+          "value": "PostgreSQL"
+        },
+        {
+          "name": "ProbotSharp__Adapters__ReplayQueue__Provider",
+          "value": "InMemory"
+        },
+        {
+          "name": "ProbotSharp__Adapters__DeadLetterQueue__Provider",
+          "value": "Database"
+        },
+        {
+          "name": "ProbotSharp__Adapters__Metrics__Provider",
+          "value": "OpenTelemetry"
+        },
+        {
+          "name": "ProbotSharp__Adapters__Tracing__Provider",
+          "value": "OpenTelemetry"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "ConnectionStrings__ProbotSharp",
+          "valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:probotsharp/database:connection_string::"
+        },
+        {
+          "name": "ProbotSharp__GitHub__AppId",
+          "valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:probotsharp/github:app_id::"
+        },
+        {
+          "name": "ProbotSharp__GitHub__WebhookSecret",
+          "valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:probotsharp/github:webhook_secret::"
+        },
+        {
+          "name": "ProbotSharp__GitHub__PrivateKey",
+          "valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:probotsharp/github:private_key::"
+        },
+        {
+          "name": "ProbotSharp__Cache__RedisConnectionString",
+          "valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:probotsharp/redis:connection_string::"
+        },
+        {
+          "name": "ProbotSharp__Metrics__OtlpEndpoint",
+          "valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:probotsharp/metrics:otlp_endpoint::"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/probotsharp",
+          "awslogs-region": "${AWS_REGION}",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ]
+}

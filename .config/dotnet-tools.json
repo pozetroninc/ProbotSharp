@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "husky": {
+      "version": "0.7.2",
+      "commands": [
+        "husky"
+      ]
+    },
+    "dotnet-ef": {
+      "version": "9.0.9",
+      "commands": [
+        "dotnet-ef"
+      ]
+    }
+  }
+}

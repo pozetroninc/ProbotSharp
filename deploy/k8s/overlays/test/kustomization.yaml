@@ -1,0 +1,52 @@
+# deploy/k8s/overlays/test/kustomization.yaml
+#
+# Kustomize test overlay for CI/CD
+#
+# This overlay extends the base kustomization and replaces the production
+# image with nginx:alpine for testing without requiring the actual ProbotSharp
+# Docker image.
+#
+# Usage:
+#   kubectl apply -k deploy/k8s/overlays/test/
+#   kubectl kustomize deploy/k8s/overlays/test/
+#
+# GitHub Actions workflow: .github/workflows/validate-kubernetes.yml
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference base kustomization (sibling directory)
+resources:
+  - ../../base
+
+# Image override for testing
+# Uses nginxinc/nginx-unprivileged which runs as non-root on port 8080
+# This matches the base deployment's security context and port configuration
+images:
+  - name: ghcr.io/your-org/probot-sharp
+    newName: nginxinc/nginx-unprivileged
+    newTag: alpine
+
+# Patch health probes for nginx test image
+# nginx serves content at / instead of /health endpoint
+patchesStrategicMerge:
+  - |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: probotsharp
+      namespace: probotsharp
+    spec:
+      template:
+        spec:
+          containers:
+            - name: probotsharp
+              livenessProbe:
+                httpGet:
+                  path: /
+              readinessProbe:
+                httpGet:
+                  path: /
+              startupProbe:
+                httpGet:
+                  path: /

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <ExcludeByFile>
+            <!-- Exclude EF Migrations -->
+            <Exclude>**/Migrations/*.cs</Exclude>
+            <Exclude>**/Migrations/**/*.cs</Exclude>
+            <Exclude>**/*DbContextModelSnapshot.cs</Exclude>
+
+            <!-- Exclude auto-generated logging code -->
+            <Exclude>**/*.LogMessages.cs</Exclude>
+
+            <!-- Exclude generated Razor files (backup, usually in obj/) -->
+            <Exclude>**/*.cshtml.g.cs</Exclude>
+            <Exclude>**/*.razor.g.cs</Exclude>
+
+            <!-- Exclude other generated files -->
+            <Exclude>**/Microsoft.Extensions.Logging.Generators/**/*.cs</Exclude>
+            <Exclude>**/obj/**/*.cs</Exclude>
+            <Exclude>**/bin/**/*.cs</Exclude>
+          </ExcludeByFile>
+          <ExcludeByAttribute>
+            <!-- Exclude types/methods with these attributes -->
+            <Exclude>Obsolete</Exclude>
+            <Exclude>GeneratedCode</Exclude>
+            <Exclude>CompilerGenerated</Exclude>
+          </ExcludeByAttribute>
+          <!-- Exclude test assemblies from coverage calculation -->
+          <Exclude>[*.Tests]*</Exclude>
+          <Exclude>[*.Tests.Integration]*</Exclude>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

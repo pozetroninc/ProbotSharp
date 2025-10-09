@@ -1,0 +1,9 @@
+# Example configuration file for ConfigBot
+# Place this at .github/configbot.yml in your repository
+
+welcomeMessage: "👋 Thanks for opening this issue! We'll review it soon."
+enableAutoLabel: true
+defaultLabels:
+  - "needs-triage"
+  - "community"
+maxCommentsPerIssue: 10

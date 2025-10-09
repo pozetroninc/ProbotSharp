@@ -1,0 +1,243 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: probotsharp
+  namespace: probotsharp
+  labels:
+    app.kubernetes.io/name: probotsharp
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: probotsharp
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: probotsharp
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: probotsharp
+        app.kubernetes.io/component: application
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: probotsharp
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: probotsharp
+          # NOTE: This is a placeholder image URL. Replace with your actual registry.
+          # CI/CD testing uses Kustomize overlay (overlays/test/) to replace with nginx:alpine.
+          # Production deployments should use: ghcr.io/<your-org>/probotsharp:latest
+          image: ghcr.io/your-org/probot-sharp:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            # ASP.NET Core Configuration
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Production"
+            - name: ASPNETCORE_URLS
+              value: "http://+:8080"
+
+            # Adapter Configuration
+            - name: ProbotSharp__Adapters__Cache__Provider
+              valueFrom:
+                configMapKeyRef:
+                  name: probotsharp-config
+                  key: ProbotSharp__Adapters__Cache__Provider
+            - name: ProbotSharp__Adapters__Idempotency__Provider
+              valueFrom:
+                configMapKeyRef:
+                  name: probotsharp-config
+                  key: ProbotSharp__Adapters__Idempotency__Provider
+            - name: ProbotSharp__Adapters__Persistence__Provider
+              valueFrom:
+                configMapKeyRef:
+                  name: probotsharp-config
+                  key: ProbotSharp__Adapters__Persistence__Provider
+            - name: ProbotSharp__Adapters__ReplayQueue__Provider
+              valueFrom:
+                configMapKeyRef:
+                  name: probotsharp-config
+                  key: ProbotSharp__Adapters__ReplayQueue__Provider
+            - name: ProbotSharp__Adapters__DeadLetterQueue__Provider
+              valueFrom:
+                configMapKeyRef:
+                  name: probotsharp-config
+                  key: ProbotSharp__Adapters__DeadLetterQueue__Provider
+            - name: ProbotSharp__Adapters__Metrics__Provider
+              valueFrom:
+                configMapKeyRef:
+                  name: probotsharp-config
+                  key: ProbotSharp__Adapters__Metrics__Provider
+            - name: ProbotSharp__Adapters__Tracing__Provider
+              valueFrom:
+                configMapKeyRef:
+                  name: probotsharp-config
+                  key: ProbotSharp__Adapters__Tracing__Provider
+
+            # Adapter Options Configuration
+            - name: ProbotSharp__Adapters__ReplayQueue__Options__MaxRetryAttempts
+              valueFrom:
+                configMapKeyRef:
+                  name: probotsharp-config
+                  key: ProbotSharp__Adapters__ReplayQueue__Options__MaxRetryAttempts
+            - name: ProbotSharp__Adapters__ReplayQueue__Options__RetryBaseDelayMs
+              valueFrom:
+                configMapKeyRef:
+                  name: probotsharp-config
+                  key: ProbotSharp__Adapters__ReplayQueue__Options__RetryBaseDelayMs
+            - name: ProbotSharp__Adapters__ReplayQueue__Options__PollIntervalMs
+              valueFrom:
+                configMapKeyRef:
+                  name: probotsharp-config
+                  key: ProbotSharp__Adapters__ReplayQueue__Options__PollIntervalMs
+            - name: ProbotSharp__Adapters__DeadLetterQueue__Options__RetentionDays
+              valueFrom:
+                configMapKeyRef:
+                  name: probotsharp-config
+                  key: ProbotSharp__Adapters__DeadLetterQueue__Options__RetentionDays
+            - name: ProbotSharp__Adapters__Metrics__Options__OtlpEndpoint
+              valueFrom:
+                configMapKeyRef:
+                  name: probotsharp-config
+                  key: ProbotSharp__Adapters__Metrics__Options__OtlpEndpoint
+            - name: ProbotSharp__Adapters__Tracing__Options__OtlpEndpoint
+              valueFrom:
+                configMapKeyRef:
+                  name: probotsharp-config
+                  key: ProbotSharp__Adapters__Tracing__Options__OtlpEndpoint
+
+            # Database Configuration
+            - name: ConnectionStrings__ProbotSharp
+              valueFrom:
+                secretKeyRef:
+                  name: probotsharp-secrets
+                  key: database-connection-string
+
+            # GitHub App Configuration
+            - name: ProbotSharp__AppId
+              valueFrom:
+                secretKeyRef:
+                  name: probotsharp-secrets
+                  key: github-app-id
+            - name: ProbotSharp__WebhookSecret
+              valueFrom:
+                secretKeyRef:
+                  name: probotsharp-secrets
+                  key: github-webhook-secret
+            - name: ProbotSharp__PrivateKey
+              valueFrom:
+                secretKeyRef:
+                  name: probotsharp-secrets
+                  key: github-private-key
+
+            # Redis Configuration (used by Cache and Idempotency adapters)
+            - name: ProbotSharp__Adapters__Cache__Options__ConnectionString
+              valueFrom:
+                secretKeyRef:
+                  name: probotsharp-secrets
+                  key: redis-connection-string
+            - name: ProbotSharp__Adapters__Idempotency__Options__ConnectionString
+              valueFrom:
+                secretKeyRef:
+                  name: probotsharp-secrets
+                  key: redis-connection-string
+
+            # PostgreSQL Configuration (used by Persistence adapter)
+            - name: ProbotSharp__Adapters__Persistence__Options__ConnectionString
+              valueFrom:
+                secretKeyRef:
+                  name: probotsharp-secrets
+                  key: database-connection-string
+
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+            successThreshold: 1
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: app-data
+              mountPath: /app/data
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: app-data
+          emptyDir: {}
+        - name: nginx-cache
+          emptyDir: {}
+
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - probotsharp
+                topologyKey: kubernetes.io/hostname

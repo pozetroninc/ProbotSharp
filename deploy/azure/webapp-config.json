@@ -1,0 +1,213 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "webAppName": {
+      "type": "string",
+      "defaultValue": "probotsharp-production",
+      "metadata": {
+        "description": "Name of the Azure Web App"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources"
+      }
+    },
+    "sku": {
+      "type": "string",
+      "defaultValue": "B1",
+      "allowedValues": [
+        "B1",
+        "B2",
+        "B3",
+        "S1",
+        "S2",
+        "S3",
+        "P1V2",
+        "P2V2",
+        "P3V2"
+      ],
+      "metadata": {
+        "description": "The SKU of App Service Plan"
+      }
+    },
+    "containerRegistryName": {
+      "type": "string",
+      "defaultValue": "probotsharp",
+      "metadata": {
+        "description": "Name of the Azure Container Registry"
+      }
+    },
+    "databaseServerName": {
+      "type": "string",
+      "metadata": {
+        "description": "PostgreSQL server name"
+      }
+    },
+    "databaseName": {
+      "type": "string",
+      "defaultValue": "probotsharp",
+      "metadata": {
+        "description": "Database name"
+      }
+    },
+    "databaseAdminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "Database administrator username"
+      }
+    },
+    "databaseAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Database administrator password"
+      }
+    },
+    "redisName": {
+      "type": "string",
+      "defaultValue": "probotsharp-cache",
+      "metadata": {
+        "description": "Name of the Azure Cache for Redis"
+      }
+    }
+  },
+  "variables": {
+    "appServicePlanName": "[concat(parameters('webAppName'), '-plan')]",
+    "containerRegistryUrl": "[concat(parameters('containerRegistryName'), '.azurecr.io')]",
+    "databaseConnectionString": "[concat('Host=', parameters('databaseServerName'), '.postgres.database.azure.com;Port=5432;Database=', parameters('databaseName'), ';Username=', parameters('databaseAdminUsername'), ';Password=', parameters('databaseAdminPassword'), ';Ssl Mode=Require;')]",
+    "redisConnectionString": "[concat(parameters('redisName'), '.redis.cache.windows.net:6380,password=', listKeys(resourceId('Microsoft.Cache/Redis', parameters('redisName')), '2021-06-01').primaryKey, ',ssl=True,abortConnect=False')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2021-02-01",
+      "name": "[variables('appServicePlanName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "[parameters('sku')]",
+        "capacity": 1
+      },
+      "kind": "linux",
+      "properties": {
+        "reserved": true
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2021-02-01",
+      "name": "[parameters('webAppName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]"
+      ],
+      "kind": "app,linux,container",
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+        "siteConfig": {
+          "linuxFxVersion": "[concat('DOCKER|', variables('containerRegistryUrl'), '/probotsharp:latest')]",
+          "appSettings": [
+            {
+              "name": "DOCKER_REGISTRY_SERVER_URL",
+              "value": "[concat('https://', variables('containerRegistryUrl'))]"
+            },
+            {
+              "name": "DOCKER_REGISTRY_SERVER_USERNAME",
+              "value": "[parameters('containerRegistryName')]"
+            },
+            {
+              "name": "DOCKER_REGISTRY_SERVER_PASSWORD",
+              "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', parameters('containerRegistryName')), '2021-09-01').passwords[0].value]"
+            },
+            {
+              "name": "WEBSITES_ENABLE_APP_SERVICE_STORAGE",
+              "value": "false"
+            },
+            {
+              "name": "WEBSITES_PORT",
+              "value": "8080"
+            },
+            {
+              "name": "ASPNETCORE_ENVIRONMENT",
+              "value": "Production"
+            },
+            {
+              "name": "ProbotSharp__Adapters__Cache__Provider",
+              "value": "Redis"
+            },
+            {
+              "name": "ProbotSharp__Adapters__Cache__Options__ConnectionString",
+              "value": "[variables('redisConnectionString')]"
+            },
+            {
+              "name": "ProbotSharp__Adapters__Idempotency__Provider",
+              "value": "Redis"
+            },
+            {
+              "name": "ProbotSharp__Adapters__Idempotency__Options__ConnectionString",
+              "value": "[variables('redisConnectionString')]"
+            },
+            {
+              "name": "ProbotSharp__Adapters__Persistence__Provider",
+              "value": "PostgreSQL"
+            },
+            {
+              "name": "ProbotSharp__Adapters__ReplayQueue__Provider",
+              "value": "InMemory"
+            },
+            {
+              "name": "ProbotSharp__Adapters__DeadLetterQueue__Provider",
+              "value": "Database"
+            },
+            {
+              "name": "ProbotSharp__Adapters__Metrics__Provider",
+              "value": "OpenTelemetry"
+            },
+            {
+              "name": "ProbotSharp__Adapters__Tracing__Provider",
+              "value": "OpenTelemetry"
+            },
+            {
+              "name": "ProbotSharp__GitHub__AppId",
+              "value": "@Microsoft.KeyVault(SecretUri=https://your-keyvault.vault.azure.net/secrets/github-app-id/)"
+            },
+            {
+              "name": "ProbotSharp__GitHub__WebhookSecret",
+              "value": "@Microsoft.KeyVault(SecretUri=https://your-keyvault.vault.azure.net/secrets/github-webhook-secret/)"
+            },
+            {
+              "name": "ProbotSharp__GitHub__PrivateKey",
+              "value": "@Microsoft.KeyVault(SecretUri=https://your-keyvault.vault.azure.net/secrets/github-private-key/)"
+            }
+          ],
+          "connectionStrings": [
+            {
+              "name": "ProbotSharp",
+              "connectionString": "[variables('databaseConnectionString')]",
+              "type": "Custom"
+            }
+          ],
+          "alwaysOn": true,
+          "http20Enabled": true,
+          "minTlsVersion": "1.2",
+          "ftpsState": "Disabled",
+          "healthCheckPath": "/health"
+        },
+        "httpsOnly": true,
+        "clientAffinityEnabled": false
+      }
+    }
+  ],
+  "outputs": {
+    "webAppUrl": {
+      "type": "string",
+      "value": "[concat('https://', reference(resourceId('Microsoft.Web/sites', parameters('webAppName'))).defaultHostName)]"
+    },
+    "databaseConnectionString": {
+      "type": "string",
+      "value": "[variables('databaseConnectionString')]"
+    }
+  }
+}

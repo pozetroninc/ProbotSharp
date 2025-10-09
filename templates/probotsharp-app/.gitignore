@@ -1,0 +1,40 @@
+# .NET Build outputs
+bin/
+obj/
+*.user
+*.suo
+*.cache
+
+# Environment variables (NEVER COMMIT SECRETS!)
+.env
+*.pem
+*.key
+
+# IDE files
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+
+# Test results
+TestResults/
+*.trx
+
+# Coverage reports
+coverage/
+*.coverage
+*.coveragexml

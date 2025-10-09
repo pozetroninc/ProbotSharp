@@ -1,0 +1,81 @@
+{
+  "action": "opened",
+  "issue": {
+    "id": 1234567890,
+    "number": 42,
+    "title": "Bug: Application crashes on startup",
+    "user": {
+      "login": "test-user",
+      "id": 54321,
+      "avatar_url": "https://avatars.githubusercontent.com/u/54321?v=4",
+      "type": "User"
+    },
+    "labels": [
+      {
+        "id": 111222333,
+        "name": "bug",
+        "color": "d73a4a",
+        "default": true,
+        "description": "Something isn't working"
+      }
+    ],
+    "state": "open",
+    "locked": false,
+    "assignee": null,
+    "assignees": [],
+    "comments": 0,
+    "created_at": "2023-01-15T12:00:00Z",
+    "updated_at": "2023-01-15T12:00:00Z",
+    "closed_at": null,
+    "body": "## Description\n\nThe application crashes immediately after startup with a NullReferenceException.\n\n## Steps to Reproduce\n\n1. Clone the repository\n2. Run `dotnet run`\n3. Observe the crash\n\n## Expected Behavior\n\nApplication should start normally and display the main menu.\n\n## Actual Behavior\n\nApplication crashes with NullReferenceException.\n\n## Environment\n\n- OS: Windows 11\n- .NET Version: 8.0.1\n- Project Version: 1.0.0",
+    "html_url": "https://github.com/test-owner/test-repo/issues/42",
+    "repository_url": "https://api.github.com/repos/test-owner/test-repo",
+    "labels_url": "https://api.github.com/repos/test-owner/test-repo/issues/42/labels{/name}",
+    "comments_url": "https://api.github.com/repos/test-owner/test-repo/issues/42/comments",
+    "events_url": "https://api.github.com/repos/test-owner/test-repo/issues/42/events"
+  },
+  "repository": {
+    "id": 123456789,
+    "name": "test-repo",
+    "full_name": "test-owner/test-repo",
+    "owner": {
+      "login": "test-owner",
+      "id": 12345,
+      "avatar_url": "https://avatars.githubusercontent.com/u/12345?v=4",
+      "type": "User"
+    },
+    "private": false,
+    "html_url": "https://github.com/test-owner/test-repo",
+    "description": "A test repository for Probot Sharp",
+    "fork": false,
+    "created_at": "2023-01-01T00:00:00Z",
+    "updated_at": "2023-01-15T12:00:00Z",
+    "pushed_at": "2023-01-15T12:00:00Z",
+    "size": 100,
+    "stargazers_count": 5,
+    "watchers_count": 5,
+    "language": "C#",
+    "has_issues": true,
+    "has_projects": true,
+    "has_downloads": true,
+    "has_wiki": true,
+    "has_pages": false,
+    "forks_count": 2,
+    "open_issues_count": 3,
+    "default_branch": "main"
+  },
+  "installation": {
+    "id": 987654321,
+    "account": {
+      "login": "test-owner",
+      "id": 12345,
+      "type": "User"
+    }
+  },
+  "sender": {
+    "login": "test-user",
+    "id": 54321,
+    "avatar_url": "https://avatars.githubusercontent.com/u/54321?v=4",
+    "type": "User"
+  }
+}

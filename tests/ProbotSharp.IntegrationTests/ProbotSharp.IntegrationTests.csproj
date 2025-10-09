@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="8.7.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.20" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.10" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.6.0" />
+    <PackageReference Include="NSubstitute" Version="5.3.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.7.0" />
+    <PackageReference Include="xunit" Version="2.6.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.6">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+</ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ProbotSharp.Bootstrap.Api\ProbotSharp.Bootstrap.Api.csproj" />
+    <ProjectReference Include="..\..\src\ProbotSharp.Bootstrap.Cli\ProbotSharp.Bootstrap.Cli.csproj" />
+    <ProjectReference Include="..\..\src\ProbotSharp.Adapters.Http\ProbotSharp.Adapters.Http.csproj" />
+    <ProjectReference Include="..\..\src\ProbotSharp.Adapters.Cli\ProbotSharp.Adapters.Cli.csproj" />
+    <ProjectReference Include="..\..\src\ProbotSharp.Adapters.Workers\ProbotSharp.Adapters.Workers.csproj" />
+    <ProjectReference Include="..\..\src\ProbotSharp.Infrastructure\ProbotSharp.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\ProbotSharp.Application\ProbotSharp.Application.csproj" />
+    <ProjectReference Include="..\..\src\ProbotSharp.Domain\ProbotSharp.Domain.csproj" />
+    <ProjectReference Include="..\..\src\ProbotSharp.Shared\ProbotSharp.Shared.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="stylecop.json" />
+  </ItemGroup>
+
+</Project>
