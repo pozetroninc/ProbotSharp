@@ -288,17 +288,11 @@ Coverage badges can be generated automatically by running coverage analysis with
 make coverage-badges
 ```
 
-Once generated, you can add them to your README.md:
+Once generated, you can add them to your README.md using standard markdown image syntax pointing to the badge files in `./coverage-report/badges/`:
 
-```text
-<!-- Coverage badges will be available after running coverage analysis -->
-<!-- Example usage (replace paths with actual badge locations after generation):
-![Coverage Status](./coverage-report/badges/coverage-status.svg)
-![Line Coverage](./coverage-report/badges/coverage-line.svg)
-![Branch Coverage](./coverage-report/badges/coverage-branch.svg)
-Note: Remove the HTML comments when adding to your README
--->
-```
+- `coverage-status.svg` - Overall coverage status badge
+- `coverage-line.svg` - Line coverage percentage badge
+- `coverage-branch.svg` - Branch coverage percentage badge
 
 **Note:** Badge files are generated automatically by the ReportGenerator tool when running coverage analysis with the `Badges` report type. They will be placed in the `coverage-report/badges/` directory after running `make coverage` or the coverage scripts.
 
