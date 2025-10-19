@@ -281,16 +281,25 @@ Example PR comment:
 
 ### Coverage Badges
 
-Add coverage badges to README.md (after running coverage analysis):
+Coverage badges can be generated automatically by running coverage analysis with badge generation:
+
+```bash
+# Generate badges after running coverage
+make coverage-badges
+```
+
+Once generated, you can add them to your README.md:
 
 ```markdown
-<!-- Coverage badges - paths are relative to repository root -->
+<!-- Coverage badges will be available after running coverage analysis -->
+<!-- Example paths (replace with actual badge locations after generation):
 ![Coverage Status](coverage-report/badges/coverage-status.svg)
 ![Line Coverage](coverage-report/badges/coverage-line.svg)
 ![Branch Coverage](coverage-report/badges/coverage-branch.svg)
+-->
 ```
 
-**Note:** These are example paths. The badges are generated automatically when running `make coverage-badges` after coverage collection. The actual badge files will be placed in the `coverage-report/badges/` directory relative to your repository root.
+**Note:** Badge files are generated automatically by the ReportGenerator tool when running coverage analysis with the `Badges` report type. They will be placed in the `coverage-report/badges/` directory after running `make coverage` or the coverage scripts.
 
 ## Improving Coverage
 

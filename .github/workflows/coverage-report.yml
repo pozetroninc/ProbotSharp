@@ -31,6 +31,9 @@ jobs:
       - name: Restore tools
         run: dotnet tool restore
 
+      - name: Install ReportGenerator
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+
       - name: Restore dependencies
         run: dotnet restore ProbotSharp.sln
 
@@ -49,7 +52,7 @@ jobs:
 
       - name: Generate PR Coverage Report
         run: |
-          dotnet reportgenerator \
+          reportgenerator \
             "-reports:coverage-pr/**/coverage.cobertura.xml" \
             "-targetdir:coverage-report-pr" \
             "-reporttypes:Html;Cobertura;TextSummary;JsonSummary;Badges;MarkdownSummary" \
@@ -82,7 +85,7 @@ jobs:
 
       - name: Generate Base Coverage Report
         run: |
-          dotnet reportgenerator \
+          reportgenerator \
             "-reports:coverage-base/**/coverage.cobertura.xml" \
             "-targetdir:coverage-report-base" \
             "-reporttypes:JsonSummary" \
