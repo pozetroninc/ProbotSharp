@@ -126,6 +126,11 @@ coverage-snapshot: ## Save current coverage snapshot
 coverage-trend: ## Show coverage trend
 	@scripts/coverage/compare-coverage.sh trend
 
+.PHONY: coverage-badges
+coverage-badges: ## Generate coverage badges from JSON reports
+	@echo "Generating coverage badges..."
+	@scripts/coverage/generate-badges.sh
+
 .PHONY: coverage-report
 coverage-report: ## Open HTML coverage report in browser
 	@if [ -d "coverage-report" ]; then \

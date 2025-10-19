@@ -118,12 +118,18 @@ echo ""
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
 echo ""
 
+# Generate custom badges
+echo -e "${YELLOW}► Generating coverage badges...${NC}"
+if [ -f "$SCRIPT_DIR/generate-badges.sh" ]; then
+    "$SCRIPT_DIR/generate-badges.sh" "$REPORT_DIR/badges" 2>/dev/null || echo -e "${YELLOW}⚠ Badge generation skipped (missing dependencies)${NC}"
+fi
+
 # Report location
 echo -e "${GREEN}✓ Coverage report generated successfully!${NC}"
 echo ""
 echo -e "📊 HTML Report: ${BLUE}file://$REPORT_DIR/index.html${NC}"
 echo -e "📄 Cobertura:   ${BLUE}$REPORT_DIR/Cobertura.xml${NC}"
-echo -e "🏷️  Badges:      ${BLUE}$REPORT_DIR/badge_combined.svg${NC}"
+echo -e "🏷️  Badges:      ${BLUE}$REPORT_DIR/badges/${NC}"
 echo ""
 
 # Open report in browser if available

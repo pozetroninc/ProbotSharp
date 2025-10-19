@@ -189,33 +189,39 @@ The HTML report (`coverage-report/index.html`) provides:
 #### Line Coverage
 Percentage of executable lines that were executed during tests.
 
-```csharp
-public int Calculate(int a, int b)  // ✓ Covered if method is called
+```text
+public class Calculator
 {
-    if (a > 0)                       // ✓ Covered if reached
+    public int Calculate(int a, int b)  // ✓ Covered if method is called
     {
-        return a + b;                // ✓ Covered if a > 0
+        if (a > 0)                       // ✓ Covered if reached
+        {
+            return a + b;                // ✓ Covered if a > 0
+        }
+        return b;                        // ✗ Not covered if a always > 0 in tests
     }
-    return b;                        // ✗ Not covered if a always > 0 in tests
 }
 ```
 
 #### Branch Coverage
 Percentage of decision branches taken during tests.
 
-```csharp
-public string GetStatus(int value)
+```text
+public class StatusChecker
 {
-    // Branch coverage requires testing both true AND false paths
-    if (value > 100)      // Need tests for value > 100 AND value <= 100
+    public string GetStatus(int value)
     {
-        return "High";
+        // Branch coverage requires testing both true AND false paths
+        if (value > 100)      // Need tests for value > 100 AND value <= 100
+        {
+            return "High";
+        }
+        else if (value > 50)  // Need tests for value > 50 AND value <= 50
+        {
+            return "Medium";
+        }
+        return "Low";
     }
-    else if (value > 50)  // Need tests for value > 50 AND value <= 50
-    {
-        return "Medium";
-    }
-    return "Low";
 }
 ```
 
@@ -278,12 +284,12 @@ Example PR comment:
 Add coverage badges to README.md (after running coverage analysis):
 
 ```markdown
-![Coverage](coverage-report/badge_combined.svg)
-![Line Coverage](coverage-report/badge_linecoverage.svg)
-![Branch Coverage](coverage-report/badge_branchcoverage.svg)
+![Coverage Status](../coverage-report/badges/coverage-status.svg)
+![Line Coverage](../coverage-report/badges/coverage-line.svg)
+![Branch Coverage](../coverage-report/badges/coverage-branch.svg)
 ```
 
-Note: These badge files are generated when you run `make coverage` and will be placed in the `coverage-report/` directory.
+**Note:** These badges are generated automatically when running `make coverage-badges` after coverage collection. The badge files will be placed in the `coverage-report/badges/` directory.
 
 ## Improving Coverage
 
@@ -309,44 +315,62 @@ Note: These badge files are generated when you run `make coverage` and will be p
 
 #### Test All Branches
 
-```csharp
-// Code under test
-public Result<int> Divide(int a, int b)
-{
-    if (b == 0)
-        return Result<int>.Failure("DivisionByZero", "Cannot divide by zero");
+```text
+using ProbotSharp.Shared.Abstractions;
+using NUnit.Framework;
 
-    return Result<int>.Success(a / b);
+// Code under test
+public class Calculator
+{
+    public Result<int> Divide(int a, int b)
+    {
+        if (b == 0)
+            return Result<int>.Failure("DivisionByZero", "Cannot divide by zero");
+
+        return Result<int>.Success(a / b);
+    }
 }
 
 // Tests needed for full branch coverage
-[Test]
-public void Divide_WithNonZeroDivisor_ReturnsSuccess()
+[TestFixture]
+public class CalculatorTests
 {
-    var result = calculator.Divide(10, 2);
-    Assert.IsTrue(result.IsSuccess);
-    Assert.AreEqual(5, result.Value);
-}
+    private Calculator calculator = new Calculator();
 
-[Test]
-public void Divide_WithZeroDivisor_ReturnsFailure()
-{
-    var result = calculator.Divide(10, 0);
-    Assert.IsFalse(result.IsSuccess);
-    Assert.AreEqual("DivisionByZero", result.Error.Code);
+    [Test]
+    public void Divide_WithNonZeroDivisor_ReturnsSuccess()
+    {
+        var result = calculator.Divide(10, 2);
+        Assert.IsTrue(result.IsSuccess);
+        Assert.AreEqual(5, result.Value);
+    }
+
+    [Test]
+    public void Divide_WithZeroDivisor_ReturnsFailure()
+    {
+        var result = calculator.Divide(10, 0);
+        Assert.IsFalse(result.IsSuccess);
+        Assert.AreEqual("DivisionByZero", result.Error.Code);
+    }
 }
 ```
 
 #### Test Edge Cases
 
-```csharp
-[TestCase(int.MaxValue, 1)]      // Boundary values
-[TestCase(int.MinValue, -1)]     // Overflow scenarios
-[TestCase(0, 1)]                 // Zero handling
-[TestCase(-10, -2)]              // Negative numbers
-public void Calculate_EdgeCases(int a, int b)
+```text
+using NUnit.Framework;
+
+[TestFixture]
+public class EdgeCaseTests
 {
-    // Test implementation
+    [TestCase(int.MaxValue, 1)]      // Boundary values
+    [TestCase(int.MinValue, -1)]     // Overflow scenarios
+    [TestCase(0, 1)]                 // Zero handling
+    [TestCase(-10, -2)]              // Negative numbers
+    public void Calculate_EdgeCases(int a, int b)
+    {
+        // Test implementation
+    }
 }
 ```
 
@@ -354,16 +378,30 @@ public void Calculate_EdgeCases(int a, int b)
 
 For value objects and specifications:
 
-```csharp
-[Property]
-public Property EmailAddress_Equality_IsSymmetric()
+```text
+using FsCheck;
+using FsCheck.NUnit;
+
+public class EmailAddress
 {
-    return Prop.ForAll<string, string>((email1, email2) =>
+    public string Value { get; }
+    public EmailAddress(string value) => Value = value;
+    public override bool Equals(object obj) => obj is EmailAddress other && Value == other.Value;
+    public override int GetHashCode() => Value?.GetHashCode() ?? 0;
+}
+
+public class PropertyTests
+{
+    [Property]
+    public Property EmailAddress_Equality_IsSymmetric()
     {
-        var addr1 = new EmailAddress(email1);
-        var addr2 = new EmailAddress(email2);
-        return (addr1.Equals(addr2)) == (addr2.Equals(addr1));
-    });
+        return Prop.ForAll<string, string>((email1, email2) =>
+        {
+            var addr1 = new EmailAddress(email1);
+            var addr2 = new EmailAddress(email2);
+            return (addr1.Equals(addr2)) == (addr2.Equals(addr1));
+        });
+    }
 }
 ```
 
@@ -373,7 +411,9 @@ Some code should be excluded from coverage metrics:
 
 #### In Source Code
 
-```csharp
+```text
+using System.Diagnostics.CodeAnalysis;
+
 // Exclude entire class
 [ExcludeFromCodeCoverage]
 public class MigrationConfiguration { }
@@ -462,20 +502,23 @@ Track coverage trends over time:
 
 **Solution**: Ensure tests cover all decision paths:
 
-```csharp
-// Needs 4 tests for full branch coverage
-public string Categorize(int? value)
+```text
+public class NumberCategorizer
 {
-    if (value == null)           // Test: null
-        return "Unknown";
+    // Needs 4 tests for full branch coverage
+    public string Categorize(int? value)
+    {
+        if (value == null)           // Test: null
+            return "Unknown";
 
-    if (value < 0)               // Test: negative
-        return "Negative";
+        if (value < 0)               // Test: negative
+            return "Negative";
 
-    if (value > 0)               // Test: positive
-        return "Positive";
+        if (value > 0)               // Test: positive
+            return "Positive";
 
-    return "Zero";               // Test: zero
+        return "Zero";               // Test: zero
+    }
 }
 ```
 
@@ -512,10 +555,18 @@ For large test suites:
    ```
 
 2. **Exclude Slow Tests from Coverage**
-   ```csharp
-   [TestCategory("SlowIntegration")]
-   [ExcludeFromCodeCoverage]
-   public void LongRunningIntegrationTest() { }
+   ```text
+   using System.Diagnostics.CodeAnalysis;
+   using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+   [TestClass]
+   public class IntegrationTests
+   {
+       [TestCategory("SlowIntegration")]
+       [ExcludeFromCodeCoverage]
+       [TestMethod]
+       public void LongRunningIntegrationTest() { }
+   }
    ```
 
 3. **Use Coverage Filters**
