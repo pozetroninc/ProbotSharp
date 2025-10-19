@@ -284,12 +284,13 @@ Example PR comment:
 Add coverage badges to README.md (after running coverage analysis):
 
 ```markdown
-![Coverage Status](../coverage-report/badges/coverage-status.svg)
-![Line Coverage](../coverage-report/badges/coverage-line.svg)
-![Branch Coverage](../coverage-report/badges/coverage-branch.svg)
+<!-- Coverage badges - paths are relative to repository root -->
+![Coverage Status](coverage-report/badges/coverage-status.svg)
+![Line Coverage](coverage-report/badges/coverage-line.svg)
+![Branch Coverage](coverage-report/badges/coverage-branch.svg)
 ```
 
-**Note:** These badges are generated automatically when running `make coverage-badges` after coverage collection. The badge files will be placed in the `coverage-report/badges/` directory.
+**Note:** These are example paths. The badges are generated automatically when running `make coverage-badges` after coverage collection. The actual badge files will be placed in the `coverage-report/badges/` directory relative to your repository root.
 
 ## Improving Coverage
 
