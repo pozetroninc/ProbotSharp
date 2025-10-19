@@ -1,0 +1,237 @@
+name: Coverage Report
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '*.sln'
+      - '*.csproj'
+      - 'coverlet.runsettings'
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  coverage-analysis:
+    name: Coverage Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Install ReportGenerator
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+
+      - name: Restore dependencies
+        run: dotnet restore ProbotSharp.sln
+
+      - name: Build in Debug for Coverage
+        run: dotnet build ProbotSharp.sln --configuration Debug --no-restore
+
+      # Run coverage for current PR (Debug mode for accurate instrumentation)
+      - name: Run tests with coverage (PR)
+        run: |
+          dotnet test ProbotSharp.sln \
+            --configuration Debug \
+            --no-build \
+            --collect:"XPlat Code Coverage" \
+            --settings coverlet.runsettings \
+            --results-directory ./coverage-pr
+
+      - name: Generate PR Coverage Report
+        run: |
+          reportgenerator \
+            "-reports:coverage-pr/**/coverage.cobertura.xml" \
+            "-targetdir:coverage-report-pr" \
+            "-reporttypes:Html;Cobertura;TextSummary;JsonSummary;Badges;MarkdownSummary" \
+            "-assemblyfilters:+ProbotSharp.*;-*.Tests;-*.Tests.*" \
+            "-classfilters:+*;-*Migrations*;-*DbContextModelSnapshot" \
+            "-title:ProbotSharp Coverage Report (PR)"
+
+      # Checkout base branch for comparison
+      - name: Checkout base branch
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git checkout origin/${{ github.base_ref }}
+
+      - name: Restore base branch
+        run: dotnet restore ProbotSharp.sln
+
+      - name: Build base branch in Debug for Coverage
+        run: dotnet build ProbotSharp.sln --configuration Debug --no-restore
+
+      # Run coverage for base branch (Debug mode for accurate instrumentation)
+      - name: Run tests with coverage (Base)
+        run: |
+          dotnet test ProbotSharp.sln \
+            --configuration Debug \
+            --no-build \
+            --collect:"XPlat Code Coverage" \
+            --settings coverlet.runsettings \
+            --results-directory ./coverage-base
+        continue-on-error: true
+
+      - name: Generate Base Coverage Report
+        run: |
+          reportgenerator \
+            "-reports:coverage-base/**/coverage.cobertura.xml" \
+            "-targetdir:coverage-report-base" \
+            "-reporttypes:JsonSummary" \
+            "-assemblyfilters:+ProbotSharp.*;-*.Tests;-*.Tests.*" \
+            "-classfilters:+*;-*Migrations*;-*DbContextModelSnapshot"
+        continue-on-error: true
+
+      # Compare and generate PR comment
+      - name: Generate Coverage Comparison
+        id: coverage_comparison
+        run: |
+          # Extract PR coverage
+          if [ -f coverage-report-pr/Summary.json ]; then
+            PR_LINE=$(grep -o '"linecoverage":[0-9.]*' coverage-report-pr/Summary.json | head -1 | cut -d: -f2)
+            PR_BRANCH=$(grep -o '"branchcoverage":[0-9.]*' coverage-report-pr/Summary.json | head -1 | cut -d: -f2)
+            PR_METHOD=$(grep -o '"methodcoverage":[0-9.]*' coverage-report-pr/Summary.json | head -1 | cut -d: -f2 || echo "0")
+          else
+            PR_LINE="0"
+            PR_BRANCH="0"
+            PR_METHOD="0"
+          fi
+
+          # Extract base coverage (fail if missing)
+          if [ -f coverage-report-base/Summary.json ]; then
+            BASE_LINE=$(grep -o '"linecoverage":[0-9.]*' coverage-report-base/Summary.json | head -1 | cut -d: -f2)
+            BASE_BRANCH=$(grep -o '"branchcoverage":[0-9.]*' coverage-report-base/Summary.json | head -1 | cut -d: -f2)
+            BASE_METHOD=$(grep -o '"methodcoverage":[0-9.]*' coverage-report-base/Summary.json | head -1 | cut -d: -f2 || echo "0")
+          else
+            echo "::error::Base branch coverage report not found - cannot compare"
+            BASE_LINE="0"
+            BASE_BRANCH="0"
+            BASE_METHOD="0"
+          fi
+
+          # Calculate deltas
+          LINE_DELTA=$(echo "$PR_LINE - $BASE_LINE" | bc)
+          BRANCH_DELTA=$(echo "$PR_BRANCH - $BASE_BRANCH" | bc)
+          METHOD_DELTA=$(echo "$PR_METHOD - $BASE_METHOD" | bc)
+
+          # Format deltas with sign
+          if (( $(echo "$LINE_DELTA > 0" | bc -l) )); then
+            LINE_DELTA_STR="+${LINE_DELTA}%"
+            LINE_EMOJI="📈"
+          elif (( $(echo "$LINE_DELTA < 0" | bc -l) )); then
+            LINE_DELTA_STR="${LINE_DELTA}%"
+            LINE_EMOJI="📉"
+          else
+            LINE_DELTA_STR="0%"
+            LINE_EMOJI="➡️"
+          fi
+
+          if (( $(echo "$BRANCH_DELTA > 0" | bc -l) )); then
+            BRANCH_DELTA_STR="+${BRANCH_DELTA}%"
+            BRANCH_EMOJI="📈"
+          elif (( $(echo "$BRANCH_DELTA < 0" | bc -l) )); then
+            BRANCH_DELTA_STR="${BRANCH_DELTA}%"
+            BRANCH_EMOJI="📉"
+          else
+            BRANCH_DELTA_STR="0%"
+            BRANCH_EMOJI="➡️"
+          fi
+
+          # Save values for next steps
+          echo "pr_line=${PR_LINE}" >> $GITHUB_OUTPUT
+          echo "pr_branch=${PR_BRANCH}" >> $GITHUB_OUTPUT
+          echo "base_line=${BASE_LINE}" >> $GITHUB_OUTPUT
+          echo "base_branch=${BASE_BRANCH}" >> $GITHUB_OUTPUT
+          echo "line_delta=${LINE_DELTA_STR}" >> $GITHUB_OUTPUT
+          echo "branch_delta=${BRANCH_DELTA_STR}" >> $GITHUB_OUTPUT
+          echo "line_emoji=${LINE_EMOJI}" >> $GITHUB_OUTPUT
+          echo "branch_emoji=${BRANCH_EMOJI}" >> $GITHUB_OUTPUT
+
+          # Define minimum thresholds
+          MIN_LINE_COVERAGE=80
+          MIN_BRANCH_COVERAGE=75
+
+          # Overall assessment - check both absolute thresholds and deltas
+          if (( $(echo "$PR_LINE < $MIN_LINE_COVERAGE" | bc -l) )) || (( $(echo "$PR_BRANCH < $MIN_BRANCH_COVERAGE" | bc -l) )); then
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "status_msg=❌ **Coverage below required thresholds (${MIN_LINE_COVERAGE}% line, ${MIN_BRANCH_COVERAGE}% branch)**" >> $GITHUB_OUTPUT
+          elif (( $(echo "$LINE_DELTA < -5" | bc -l) )) || (( $(echo "$BRANCH_DELTA < -5" | bc -l) )); then
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "status_msg=❌ **Significant coverage decrease detected**" >> $GITHUB_OUTPUT
+          elif (( $(echo "$LINE_DELTA < 0" | bc -l) )) || (( $(echo "$BRANCH_DELTA < 0" | bc -l) )); then
+            echo "status=warning" >> $GITHUB_OUTPUT
+            echo "status_msg=⚠️ Coverage decreased slightly" >> $GITHUB_OUTPUT
+          elif (( $(echo "$LINE_DELTA > 0" | bc -l) )) && (( $(echo "$BRANCH_DELTA > 0" | bc -l) )); then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "status_msg=✅ Coverage improved!" >> $GITHUB_OUTPUT
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "status_msg=✅ Coverage meets requirements" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment PR with Coverage
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          message: |
+            ## 📊 Coverage Report
+
+            ${{ steps.coverage_comparison.outputs.status_msg }}
+
+            | Metric | Base Branch | This PR | Delta |
+            |--------|-------------|---------|-------|
+            | **Line Coverage** | ${{ steps.coverage_comparison.outputs.base_line }}% | ${{ steps.coverage_comparison.outputs.pr_line }}% | ${{ steps.coverage_comparison.outputs.line_emoji }} ${{ steps.coverage_comparison.outputs.line_delta }} |
+            | **Branch Coverage** | ${{ steps.coverage_comparison.outputs.base_branch }}% | ${{ steps.coverage_comparison.outputs.pr_branch }}% | ${{ steps.coverage_comparison.outputs.branch_emoji }} ${{ steps.coverage_comparison.outputs.branch_delta }} |
+
+            <details>
+            <summary>Coverage Targets</summary>
+
+            - **Domain Layer**: 90% line, 85% branch
+            - **Application Layer**: 80% line, 75% branch
+            - **Infrastructure Layer**: 70% line, 65% branch
+            - **Overall Target**: 80% line, 75% branch
+
+            </details>
+
+            ---
+            *Coverage report generated by [ProbotSharp CI](.github/workflows/coverage-report.yml)*
+
+      - name: Upload PR Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-pr-${{ github.event.pull_request.number }}
+          path: coverage-report-pr/
+          retention-days: 30
+
+      - name: Set Coverage Status Check
+        if: always()
+        run: |
+          STATUS="${{ steps.coverage_comparison.outputs.status }}"
+          PR_LINE="${{ steps.coverage_comparison.outputs.pr_line }}"
+          PR_BRANCH="${{ steps.coverage_comparison.outputs.pr_branch }}"
+
+          # Enforce absolute thresholds
+          if [ "$STATUS" = "failure" ]; then
+            echo "::error::Coverage check failed. Line: ${PR_LINE}% (min: 80%), Branch: ${PR_BRANCH}% (min: 75%)"
+            exit 1
+          elif [ "$STATUS" = "warning" ]; then
+            echo "::warning::Coverage decreased slightly but still meets minimums. Line: ${PR_LINE}%, Branch: ${PR_BRANCH}%"
+          else
+            echo "::notice::Coverage check passed. Line: ${PR_LINE}%, Branch: ${PR_BRANCH}%"
+          fi
+
+          # Additional check for missing base report
+          if [ ! -f coverage-report-base/Summary.json ]; then
+            echo "::error::Failed to generate base branch coverage for comparison"
+            exit 1
+          fi

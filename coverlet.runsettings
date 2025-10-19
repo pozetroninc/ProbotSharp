@@ -4,7 +4,20 @@
     <DataCollectors>
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
-          <Format>cobertura</Format>
+          <!-- Output formats: cobertura for tools, json for summaries, opencover for SonarQube/other analyzers -->
+          <Format>cobertura,json,opencover</Format>
+
+          <!-- Include branch coverage for comprehensive analysis -->
+          <IncludeTestAssembly>false</IncludeTestAssembly>
+          <SkipAutoProps>true</SkipAutoProps>
+          <UseSourceLink>true</UseSourceLink>
+
+          <!-- Disable deterministic builds for OpenCover format support -->
+          <DeterministicSourcePaths>false</DeterministicSourcePaths>
+
+          <!-- Coverage thresholds per assembly type -->
+          <SingleHit>false</SingleHit>
+
           <ExcludeByFile>
             <!-- Exclude EF Migrations -->
             <Exclude>**/Migrations/*.cs</Exclude>

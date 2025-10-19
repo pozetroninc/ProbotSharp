@@ -156,3 +156,5 @@ $RECYCLE.BIN/
 # Linux
 *~
 .directory
+.worktrees/
+coverage-domain/
