@@ -292,10 +292,10 @@ Once generated, you can add them to your README.md:
 
 ```markdown
 <!-- Coverage badges will be available after running coverage analysis -->
-<!-- Example paths (replace with actual badge locations after generation):
-![Coverage Status](coverage-report/badges/coverage-status.svg)
-![Line Coverage](coverage-report/badges/coverage-line.svg)
-![Branch Coverage](coverage-report/badges/coverage-branch.svg)
+<!-- Example usage (replace paths with actual badge locations after generation):
+!​[Coverage Status](./coverage-report/badges/coverage-status.svg)
+!​[Line Coverage](./coverage-report/badges/coverage-line.svg)
+!​[Branch Coverage](./coverage-report/badges/coverage-branch.svg)
 -->
 ```
 
