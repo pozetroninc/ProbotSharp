@@ -34,6 +34,14 @@ jobs:
       - name: Install ReportGenerator
         run: dotnet tool install -g dotnet-reportgenerator-globaltool
 
+      - name: Install jq for JSON parsing
+        run: |
+          if ! command -v jq &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y jq
+          fi
+          jq --version
+
       - name: Restore dependencies
         run: dotnet restore ProbotSharp.sln
 
@@ -93,26 +101,63 @@ jobs:
             "-classfilters:+*;-*Migrations*;-*DbContextModelSnapshot"
         continue-on-error: true
 
+      - name: Upload Summary.json for debugging
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: summary-json-debug-${{ github.event.pull_request.number }}
+          path: |
+            coverage-report-pr/Summary.json
+            coverage-report-base/Summary.json
+          retention-days: 7
+
       # Compare and generate PR comment
       - name: Generate Coverage Comparison
         id: coverage_comparison
         run: |
-          # Extract PR coverage
+          # Extract PR coverage using jq for reliable JSON parsing
+          # ReportGenerator's Summary.json has coverage metrics nested under .summary object
+          # Values are stored as percentages (0-100), not decimal rates (0.0-1.0)
           if [ -f coverage-report-pr/Summary.json ]; then
-            PR_LINE=$(grep -o '"linecoverage":[0-9.]*' coverage-report-pr/Summary.json | head -1 | cut -d: -f2)
-            PR_BRANCH=$(grep -o '"branchcoverage":[0-9.]*' coverage-report-pr/Summary.json | head -1 | cut -d: -f2)
-            PR_METHOD=$(grep -o '"methodcoverage":[0-9.]*' coverage-report-pr/Summary.json | head -1 | cut -d: -f2 || echo "0")
+            echo "::debug::PR Summary.json structure:"
+            jq '.summary | {linecoverage, branchcoverage, methodcoverage}' coverage-report-pr/Summary.json || echo "::warning::Failed to parse PR JSON"
+
+            # Extract coverage values from .summary object
+            PR_LINE=$(jq -r '.summary.linecoverage // 0' coverage-report-pr/Summary.json 2>/dev/null)
+            PR_BRANCH=$(jq -r '.summary.branchcoverage // 0' coverage-report-pr/Summary.json 2>/dev/null)
+            PR_METHOD=$(jq -r '.summary.methodcoverage // 0' coverage-report-pr/Summary.json 2>/dev/null)
+
+            # Validate extracted values
+            if [ -z "$PR_LINE" ] || [ "$PR_LINE" = "null" ]; then
+              echo "::error::Failed to extract PR line coverage from Summary.json"
+              echo "::error::Available keys: $(jq 'keys' coverage-report-pr/Summary.json 2>/dev/null)"
+              PR_LINE="0"
+            fi
+
+            echo "::notice::PR Coverage - Line: ${PR_LINE}%, Branch: ${PR_BRANCH}%, Method: ${PR_METHOD}%"
           else
+            echo "::error::PR coverage report not found at coverage-report-pr/Summary.json"
             PR_LINE="0"
             PR_BRANCH="0"
             PR_METHOD="0"
           fi
 
-          # Extract base coverage (fail if missing)
+          # Extract base coverage with same approach
           if [ -f coverage-report-base/Summary.json ]; then
-            BASE_LINE=$(grep -o '"linecoverage":[0-9.]*' coverage-report-base/Summary.json | head -1 | cut -d: -f2)
-            BASE_BRANCH=$(grep -o '"branchcoverage":[0-9.]*' coverage-report-base/Summary.json | head -1 | cut -d: -f2)
-            BASE_METHOD=$(grep -o '"methodcoverage":[0-9.]*' coverage-report-base/Summary.json | head -1 | cut -d: -f2 || echo "0")
+            echo "::debug::Base Summary.json structure:"
+            jq '.summary | {linecoverage, branchcoverage, methodcoverage}' coverage-report-base/Summary.json || echo "::warning::Failed to parse base JSON"
+
+            BASE_LINE=$(jq -r '.summary.linecoverage // 0' coverage-report-base/Summary.json 2>/dev/null)
+            BASE_BRANCH=$(jq -r '.summary.branchcoverage // 0' coverage-report-base/Summary.json 2>/dev/null)
+            BASE_METHOD=$(jq -r '.summary.methodcoverage // 0' coverage-report-base/Summary.json 2>/dev/null)
+
+            if [ -z "$BASE_LINE" ] || [ "$BASE_LINE" = "null" ]; then
+              echo "::error::Failed to extract base line coverage from Summary.json"
+              echo "::error::Available keys: $(jq 'keys' coverage-report-base/Summary.json 2>/dev/null)"
+              BASE_LINE="0"
+            fi
+
+            echo "::notice::Base Coverage - Line: ${BASE_LINE}%, Branch: ${BASE_BRANCH}%, Method: ${BASE_METHOD}%"
           else
             echo "::error::Base branch coverage report not found - cannot compare"
             BASE_LINE="0"
