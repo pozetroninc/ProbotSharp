@@ -3,23 +3,40 @@
 
 namespace ProbotSharp.Application.Models;
 
+/// <summary>
+/// Command for enqueuing a webhook replay.
+/// </summary>
 public sealed record class EnqueueReplayCommand
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EnqueueReplayCommand"/> class.
+    /// </summary>
+    /// <param name="command">The webhook processing command to replay.</param>
+    /// <param name="attempt">The attempt number (defaults to 0).</param>
     public EnqueueReplayCommand(ProcessWebhookCommand command, int attempt = 0)
     {
-        Command = command ?? throw new ArgumentNullException(nameof(command));
+        this.Command = command ?? throw new ArgumentNullException(nameof(command));
         if (attempt < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(attempt), "Attempt count cannot be negative.");
         }
 
-        Attempt = attempt;
+        this.Attempt = attempt;
     }
 
+    /// <summary>
+    /// Gets the webhook processing command.
+    /// </summary>
     public ProcessWebhookCommand Command { get; }
 
+    /// <summary>
+    /// Gets the attempt number.
+    /// </summary>
     public int Attempt { get; }
 
-    public EnqueueReplayCommand NextAttempt() => new(Command, Attempt + 1);
+    /// <summary>
+    /// Creates a new command for the next retry attempt.
+    /// </summary>
+    /// <returns>A new command with incremented attempt count.</returns>
+    public EnqueueReplayCommand NextAttempt() => new(this.Command, this.Attempt + 1);
 }
-

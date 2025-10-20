@@ -6,6 +6,8 @@ using Microsoft.Extensions.Logging;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Shared.Abstractions;
 
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
+
 namespace ProbotSharp.Infrastructure.Adapters.Persistence;
 
 /// <summary>
@@ -52,3 +54,4 @@ public sealed class EfUnitOfWork : IUnitOfWorkPort
     }
 }
 
+#pragma warning restore CA1848

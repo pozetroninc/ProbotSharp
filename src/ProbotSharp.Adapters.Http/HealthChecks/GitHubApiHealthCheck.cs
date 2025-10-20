@@ -7,15 +7,28 @@ using ProbotSharp.Application.Ports.Outbound;
 
 namespace ProbotSharp.Adapters.Http.HealthChecks;
 
+/// <summary>
+/// Health check for GitHub API connectivity and availability.
+/// </summary>
 public sealed class GitHubApiHealthCheck : IHealthCheck
 {
     private readonly IGitHubRestClientPort _gitHubRestClient;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GitHubApiHealthCheck"/> class.
+    /// </summary>
+    /// <param name="gitHubRestClient">The GitHub REST client to check.</param>
     public GitHubApiHealthCheck(IGitHubRestClientPort gitHubRestClient)
     {
-        _gitHubRestClient = gitHubRestClient ?? throw new ArgumentNullException(nameof(gitHubRestClient));
+        this._gitHubRestClient = gitHubRestClient ?? throw new ArgumentNullException(nameof(gitHubRestClient));
     }
 
+    /// <summary>
+    /// Checks the health of GitHub API connectivity.
+    /// </summary>
+    /// <param name="context">The health check context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The health check result.</returns>
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
@@ -23,7 +36,7 @@ public sealed class GitHubApiHealthCheck : IHealthCheck
         try
         {
             // Attempt to call GitHub API meta endpoint (doesn't require authentication)
-            var result = await _gitHubRestClient.SendAsync(
+            var result = await this._gitHubRestClient.SendAsync(
                 async client =>
                 {
                     var response = await client.GetAsync("/meta", cancellationToken).ConfigureAwait(false);

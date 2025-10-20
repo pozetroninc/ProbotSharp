@@ -3,9 +3,11 @@
 
 using System.IO;
 using System.Reflection;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Infrastructure.Extensions;
 
@@ -181,5 +183,3 @@ public sealed class AdapterServiceCollectionExtensionsAdditionalTests
         port.GetType().Name.Should().Be("FileSystemWebhookReplayQueueAdapter");
     }
 }
-
-

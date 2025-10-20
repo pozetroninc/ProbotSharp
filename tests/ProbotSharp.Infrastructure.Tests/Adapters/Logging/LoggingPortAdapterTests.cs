@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using Microsoft.Extensions.Logging;
+
 using NSubstitute;
+
 using ProbotSharp.Infrastructure.Adapters.Logging;
 
 namespace ProbotSharp.Infrastructure.Tests.Adapters.Logging;
@@ -36,6 +38,3 @@ public sealed class LoggingPortAdapterTests
             Arg.Any<Func<object, Exception?, string>>());
     }
 }
-
-
-

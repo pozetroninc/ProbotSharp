@@ -23,6 +23,11 @@ namespace ProbotSharp.Infrastructure.Tests.Adapters.GitHub;
 /// </summary>
 public sealed class GitHubGraphQlClientAdapterResilienceTests
 {
+    private static readonly JsonSerializerOptions s_jsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<GitHubGraphQlClientAdapter> _logger;
     private readonly GitHubGraphQlClientAdapter _sut;
@@ -39,8 +44,8 @@ public sealed class GitHubGraphQlClientAdapterResilienceTests
     {
         // Arrange
         var responseData = new { viewer = new { login = "testuser" } };
-        var handler = new MockGraphQlHandler(HttpStatusCode.OK, responseData);
-        var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.github.com/") };
+        using var handler = new MockGraphQlHandler(HttpStatusCode.OK, responseData);
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.github.com/") };
         this._httpClientFactory.CreateClient("GitHubGraphQL").Returns(httpClient);
 
         var query = "query { viewer { login } }";
@@ -58,11 +63,11 @@ public sealed class GitHubGraphQlClientAdapterResilienceTests
     public async Task ExecuteAsync_ShouldReturnFailure_WhenGraphQlReturnsErrors()
     {
         // Arrange
-        var handler = new MockGraphQlHandler(
+        using var handler = new MockGraphQlHandler(
             HttpStatusCode.OK,
             data: null,
             errors: new[] { new { message = "Field 'invalid' doesn't exist" } });
-        var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.github.com/") };
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.github.com/") };
         this._httpClientFactory.CreateClient("GitHubGraphQL").Returns(httpClient);
 
         var query = "query { invalid }";
@@ -82,7 +87,7 @@ public sealed class GitHubGraphQlClientAdapterResilienceTests
         // Arrange - First call returns 503, second succeeds
         var attemptCount = 0;
         var responseData = new { viewer = new { login = "testuser" } };
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return attemptCount == 1
@@ -90,7 +95,7 @@ public sealed class GitHubGraphQlClientAdapterResilienceTests
                 : CreateJsonResponse(HttpStatusCode.OK, new { data = responseData });
         });
 
-        var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.github.com/") };
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.github.com/") };
         this._httpClientFactory.CreateClient("GitHubGraphQL").Returns(httpClient);
 
         var query = "query { viewer { login } }";
@@ -109,7 +114,7 @@ public sealed class GitHubGraphQlClientAdapterResilienceTests
         // Arrange - First 2 calls return 429, third succeeds
         var attemptCount = 0;
         var responseData = new { viewer = new { login = "testuser" } };
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return attemptCount <= 2
@@ -117,7 +122,7 @@ public sealed class GitHubGraphQlClientAdapterResilienceTests
                 : CreateJsonResponse(HttpStatusCode.OK, new { data = responseData });
         });
 
-        var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.github.com/") };
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.github.com/") };
         this._httpClientFactory.CreateClient("GitHubGraphQL").Returns(httpClient);
 
         var query = "query { viewer { login } }";
@@ -135,13 +140,13 @@ public sealed class GitHubGraphQlClientAdapterResilienceTests
     {
         // Arrange - Return 401 Unauthorized
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return new HttpResponseMessage(HttpStatusCode.Unauthorized);
         });
 
-        var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.github.com/") };
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.github.com/") };
         this._httpClientFactory.CreateClient("GitHubGraphQL").Returns(httpClient);
 
         var query = "query { viewer { login } }";
@@ -160,10 +165,10 @@ public sealed class GitHubGraphQlClientAdapterResilienceTests
     public async Task ExecuteAsync_ShouldReturnFailure_WhenHttpRequestExceptionOccurs()
     {
         // Arrange - Simulate network error
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
             throw new HttpRequestException("Network error"));
 
-        var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.github.com/") };
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.github.com/") };
         this._httpClientFactory.CreateClient("GitHubGraphQL").Returns(httpClient);
 
         var query = "query { viewer { login } }";
@@ -181,14 +186,14 @@ public sealed class GitHubGraphQlClientAdapterResilienceTests
     public async Task ExecuteAsync_ShouldReturnFailure_WhenResponseIsNotValidJson()
     {
         // Arrange
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             var response = new HttpResponseMessage(HttpStatusCode.OK);
             response.Content = new StringContent("Not valid JSON", Encoding.UTF8, "application/json");
             return response;
         });
 
-        var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.github.com/") };
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.github.com/") };
         this._httpClientFactory.CreateClient("GitHubGraphQL").Returns(httpClient);
 
         var query = "query { viewer { login } }";
@@ -257,7 +262,7 @@ public sealed class GitHubGraphQlClientAdapterResilienceTests
     {
         var response = new HttpResponseMessage(statusCode);
         response.Content = new StringContent(
-            JsonSerializer.Serialize(content, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }),
+            JsonSerializer.Serialize(content, s_jsonOptions),
             Encoding.UTF8,
             "application/json");
         return response;

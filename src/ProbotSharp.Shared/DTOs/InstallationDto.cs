@@ -18,5 +18,7 @@ public sealed class InstallationDto
     /// <summary>
     /// The repositories associated with this installation.
     /// </summary>
+#pragma warning disable CA2227 // Required for JSON deserialization
     public List<RepositoryDto> Repositories { get; set; } = new();
+#pragma warning restore CA2227
 }

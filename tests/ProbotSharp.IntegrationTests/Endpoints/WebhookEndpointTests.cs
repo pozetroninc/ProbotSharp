@@ -34,7 +34,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreatePushEventPayload();
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "push");
+        using var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "push");
 
         // Act
         var response = await _client.SendAsync(request);
@@ -49,7 +49,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreatePushEventPayload();
         var invalidSignature = "sha256=" + new string('0', 64); // Invalid signature
-        var request = WebhookTestHelpers.CreateWebhookRequest(payload, invalidSignature, "push", Guid.NewGuid().ToString());
+        using var request = WebhookTestHelpers.CreateWebhookRequest(payload, invalidSignature, "push", Guid.NewGuid().ToString());
 
         // Act
         var response = await _client.SendAsync(request);
@@ -66,7 +66,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreatePushEventPayload();
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = new HttpRequestMessage(HttpMethod.Post, "/webhooks")
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/webhooks")
         {
             Content = new StringContent(payload, Encoding.UTF8, "application/json")
         };
@@ -89,7 +89,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreatePushEventPayload();
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = new HttpRequestMessage(HttpMethod.Post, "/webhooks")
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/webhooks")
         {
             Content = new StringContent(payload, Encoding.UTF8, "application/json")
         };
@@ -111,7 +111,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
     {
         // Arrange
         var payload = WebhookTestHelpers.CreatePushEventPayload();
-        var request = new HttpRequestMessage(HttpMethod.Post, "/webhooks")
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/webhooks")
         {
             Content = new StringContent(payload, Encoding.UTF8, "application/json")
         };
@@ -134,7 +134,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreateIssuesEventPayload();
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "issues");
+        using var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "issues");
 
         // Act
         var response = await _client.SendAsync(request);
@@ -149,7 +149,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload1 = WebhookTestHelpers.CreatePushEventPayload(installationId: 11111);
         var signature1 = WebhookTestHelpers.GenerateWebhookSignature(payload1, WebhookSecret);
-        var request1 = WebhookTestHelpers.CreateWebhookRequest(
+        using var request1 = WebhookTestHelpers.CreateWebhookRequest(
             payload1,
             signature1,
             "push",
@@ -157,7 +157,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
 
         var payload2 = WebhookTestHelpers.CreatePushEventPayload(installationId: 22222);
         var signature2 = WebhookTestHelpers.GenerateWebhookSignature(payload2, WebhookSecret);
-        var request2 = WebhookTestHelpers.CreateWebhookRequest(
+        using var request2 = WebhookTestHelpers.CreateWebhookRequest(
             payload2,
             signature2,
             "push",
@@ -178,7 +178,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreatePullRequestEventPayload(action: "opened");
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "pull_request");
+        using var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "pull_request");
 
         // Act
         var response = await _client.SendAsync(request);
@@ -193,7 +193,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreatePullRequestEventPayload(action: "closed");
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "pull_request");
+        using var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "pull_request");
 
         // Act
         var response = await _client.SendAsync(request);
@@ -208,7 +208,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreatePullRequestEventPayload(action: "synchronize");
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "pull_request");
+        using var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "pull_request");
 
         // Act
         var response = await _client.SendAsync(request);
@@ -223,7 +223,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreateIssueCommentEventPayload();
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "issue_comment");
+        using var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "issue_comment");
 
         // Act
         var response = await _client.SendAsync(request);
@@ -238,7 +238,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreateIssuesEventPayload(action: "closed");
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "issues");
+        using var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "issues");
 
         // Act
         var response = await _client.SendAsync(request);
@@ -253,7 +253,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreateIssuesEventPayload(action: "edited");
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "issues");
+        using var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "issues");
 
         // Act
         var response = await _client.SendAsync(request);
@@ -268,7 +268,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreateMalformedPayload();
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "push", Guid.NewGuid().ToString());
+        using var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "push", Guid.NewGuid().ToString());
 
         // Act
         var response = await _client.SendAsync(request);
@@ -283,7 +283,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = string.Empty;
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "push");
+        using var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "push");
 
         // Act
         var response = await _client.SendAsync(request);
@@ -298,7 +298,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreatePushEventPayload();
         var invalidSignature = "invalid-signature-format";
-        var request = WebhookTestHelpers.CreateWebhookRequest(payload, invalidSignature, "push", Guid.NewGuid().ToString());
+        using var request = WebhookTestHelpers.CreateWebhookRequest(payload, invalidSignature, "push", Guid.NewGuid().ToString());
 
         // Act
         var response = await _client.SendAsync(request);
@@ -313,7 +313,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreatePushEventPayload();
         var signatureWithoutPrefix = new string('0', 64);
-        var request = WebhookTestHelpers.CreateWebhookRequest(payload, signatureWithoutPrefix, "push", Guid.NewGuid().ToString());
+        using var request = WebhookTestHelpers.CreateWebhookRequest(payload, signatureWithoutPrefix, "push", Guid.NewGuid().ToString());
 
         // Act
         var response = await _client.SendAsync(request);
@@ -328,7 +328,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreatePushEventPayload();
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, string.Empty, Guid.NewGuid().ToString());
+        using var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, string.Empty, Guid.NewGuid().ToString());
 
         // Act
         var response = await _client.SendAsync(request);
@@ -343,7 +343,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreatePushEventPayload();
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = WebhookTestHelpers.CreateWebhookRequest(
+        using var request = WebhookTestHelpers.CreateWebhookRequest(
             payload,
             signature,
             "push",
@@ -363,8 +363,8 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         var deliveryId = "99999999-9999-9999-9999-999999999999";
         var payload = WebhookTestHelpers.CreatePushEventPayload();
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request1 = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "push", deliveryId);
-        var request2 = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "push", deliveryId);
+        using var request1 = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "push", deliveryId);
+        using var request2 = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "push", deliveryId);
 
         // Act
         var response1 = await _client.SendAsync(request1);
@@ -390,7 +390,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         // Arrange
         var payload = WebhookTestHelpers.CreatePushEventPayload();
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = WebhookTestHelpers.CreateWebhookRequest(
+        using var request = WebhookTestHelpers.CreateWebhookRequest(
             payload,
             signature,
             eventName,
@@ -441,7 +441,7 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         }
         """;
         var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
-        var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "issues");
+        using var request = WebhookTestHelpers.CreateWebhookRequest(payload, signature, "issues");
 
         // Act
         var response = await _client.SendAsync(request);
@@ -459,11 +459,13 @@ public class WebhookEndpointTests : IClassFixture<ProbotSharpTestFactory>
         {
             var payload = WebhookTestHelpers.CreatePushEventPayload(installationId: 12345 + i);
             var signature = WebhookTestHelpers.GenerateWebhookSignature(payload, WebhookSecret);
+#pragma warning disable CA2000 // HttpRequestMessage is intentionally not disposed - must remain alive until Task.WhenAll completes
             var request = WebhookTestHelpers.CreateWebhookRequest(
                 payload,
                 signature,
                 "push",
                 Guid.NewGuid().ToString());
+#pragma warning restore CA2000
 
             tasks.Add(_client.SendAsync(request));
         }

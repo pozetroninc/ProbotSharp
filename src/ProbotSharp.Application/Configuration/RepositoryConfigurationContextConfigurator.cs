@@ -18,11 +18,11 @@ internal sealed class RepositoryConfigurationContextConfigurator : IProbotSharpC
 
     public RepositoryConfigurationContextConfigurator(RepositoryConfigurationService configService)
     {
-        _configService = configService;
+        this._configService = configService;
     }
 
     public void Configure(ProbotSharpContext context)
     {
-        context.SetConfigurationService(_configService, RepositoryConfigurationOptions.Default);
+        context.SetConfigurationService(this._configService, RepositoryConfigurationOptions.Default);
     }
 }

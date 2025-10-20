@@ -33,5 +33,5 @@ public class CommentAttachment
     /// <summary>
     /// Gets or sets the collection of fields to display in the attachment.
     /// </summary>
-    public List<AttachmentField>? Fields { get; set; }
+    public List<AttachmentField>? Fields { get; init; }
 }

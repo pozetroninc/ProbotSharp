@@ -12,10 +12,26 @@ using ProbotSharp.Application.Ports.Inbound;
 using ProbotSharp.Domain.Services;
 using ProbotSharp.Domain.ValueObjects;
 
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
+
 namespace ProbotSharp.Adapters.Http.Webhooks;
 
+/// <summary>
+/// HTTP endpoint handler for GitHub webhook deliveries.
+/// Validates webhook signatures and routes events to the processing pipeline.
+/// </summary>
 public static class WebhookEndpoint
 {
+    /// <summary>
+    /// Handles incoming GitHub webhook HTTP requests.
+    /// Validates signature, extracts payload, and delegates to webhook processing use case.
+    /// </summary>
+    /// <param name="context">The HTTP context for the webhook request.</param>
+    /// <param name="processingPort">The webhook processing port for handling webhook events.</param>
+    /// <param name="configuration">The application configuration for webhook secret.</param>
+    /// <param name="signatureValidator">The validator for webhook signature verification.</param>
+    /// <param name="logger">The logger for recording webhook processing operations.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public static async Task HandleAsync(
         HttpContext context,
         IWebhookProcessingPort processingPort,
@@ -123,3 +139,4 @@ public static class WebhookEndpoint
     }
 }
 
+#pragma warning restore CA1848

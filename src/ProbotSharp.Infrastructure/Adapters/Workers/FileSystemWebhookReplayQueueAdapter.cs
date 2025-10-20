@@ -58,9 +58,14 @@ public sealed class FileSystemWebhookReplayQueueAdapter : IWebhookReplayQueuePor
             var filePath = Path.Combine(this._queueDirectory, fileName);
 
             var payload = ReplayQueueItem.FromCommand(command);
-            await using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            try
             {
                 await JsonSerializer.SerializeAsync(stream, payload, SerializerOptions, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                await stream.DisposeAsync().ConfigureAwait(false);
             }
 
             WorkerLogMessages.ReplayCommandPersisted(this._logger, command.Command.DeliveryId.Value, command.Attempt + 1, fileName);
@@ -105,9 +110,14 @@ public sealed class FileSystemWebhookReplayQueueAdapter : IWebhookReplayQueuePor
             }
 
             ReplayQueueItem? item;
-            await using (var stream = new FileStream(nextFile, FileMode.Open, FileAccess.Read, FileShare.None))
+            var stream = new FileStream(nextFile, FileMode.Open, FileAccess.Read, FileShare.None);
+            try
             {
                 item = await JsonSerializer.DeserializeAsync<ReplayQueueItem>(stream, SerializerOptions, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                await stream.DisposeAsync().ConfigureAwait(false);
             }
 
             if (item is null)

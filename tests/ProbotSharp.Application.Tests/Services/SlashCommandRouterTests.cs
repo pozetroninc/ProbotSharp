@@ -3,9 +3,13 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+
 using Newtonsoft.Json.Linq;
+
 using NSubstitute;
+
 using Octokit;
+
 using ProbotSharp.Application.Abstractions.Commands;
 using ProbotSharp.Application.Services;
 using ProbotSharp.Domain.Commands;
@@ -231,8 +235,8 @@ public class SlashCommandRouterTests
         // Arrange
         var context = CreateTestContext();
         var commentBody = "/test argument";
-        var cts = new CancellationTokenSource();
-        cts.Cancel();
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
 
         var handler = Substitute.For<ISlashCommandHandler>();
         handler.HandleAsync(Arg.Any<ProbotSharpContext>(), Arg.Any<SlashCommand>(), Arg.Any<CancellationToken>())

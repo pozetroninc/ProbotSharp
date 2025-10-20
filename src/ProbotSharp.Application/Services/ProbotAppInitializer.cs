@@ -6,6 +6,8 @@ using Microsoft.Extensions.Logging;
 
 using ProbotSharp.Application.Abstractions;
 
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
+
 namespace ProbotSharp.Application.Services;
 
 /// <summary>
@@ -41,11 +43,11 @@ public sealed class ProbotAppInitializer : IHostedService
         ArgumentNullException.ThrowIfNull(appLoader);
         ArgumentNullException.ThrowIfNull(logger);
 
-        _apps = apps;
-        _router = router;
-        _serviceProvider = serviceProvider;
-        _appLoader = appLoader;
-        _logger = logger;
+        this._apps = apps;
+        this._router = router;
+        this._serviceProvider = serviceProvider;
+        this._appLoader = appLoader;
+        this._logger = logger;
     }
 
     /// <summary>
@@ -53,17 +55,17 @@ public sealed class ProbotAppInitializer : IHostedService
     /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Initializing {AppCount} Probot app(s)...", _apps.Count);
+        this._logger.LogInformation("Initializing {AppCount} Probot app(s)...", this._apps.Count);
 
-        foreach (var app in _apps)
+        foreach (var app in this._apps)
         {
             try
             {
-                await _appLoader.InitializeAppAsync(app, _router, _serviceProvider);
+                await this._appLoader.InitializeAppAsync(app, this._router, this._serviceProvider).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(
+                this._logger.LogError(
                     ex,
                     "Failed to initialize app {AppName}: {ErrorMessage}",
                     app.Name,
@@ -72,7 +74,7 @@ public sealed class ProbotAppInitializer : IHostedService
             }
         }
 
-        _logger.LogInformation("Successfully initialized all Probot apps");
+        this._logger.LogInformation("Successfully initialized all Probot apps");
     }
 
     /// <summary>
@@ -80,7 +82,9 @@ public sealed class ProbotAppInitializer : IHostedService
     /// </summary>
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Probot app initializer shutting down");
+        this._logger.LogInformation("Probot app initializer shutting down");
         return Task.CompletedTask;
     }
 }
+
+#pragma warning restore CA1848

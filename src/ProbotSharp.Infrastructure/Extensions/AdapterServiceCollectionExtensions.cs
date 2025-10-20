@@ -2,10 +2,12 @@
 // Licensed under the MIT License.
 
 using System.IO;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Infrastructure.Adapters.Caching;
 using ProbotSharp.Infrastructure.Adapters.Idempotency;

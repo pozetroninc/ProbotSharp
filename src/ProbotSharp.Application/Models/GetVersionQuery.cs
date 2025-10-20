@@ -3,4 +3,7 @@
 
 namespace ProbotSharp.Application.Models;
 
+/// <summary>
+/// Represents a query to get version information.
+/// </summary>
 public sealed record class GetVersionQuery;

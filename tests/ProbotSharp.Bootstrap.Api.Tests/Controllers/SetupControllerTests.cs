@@ -16,13 +16,14 @@ using ProbotSharp.Shared.Abstractions;
 
 namespace ProbotSharp.Bootstrap.Api.Tests.Controllers;
 
-public class SetupControllerTests
+public class SetupControllerTests : IDisposable
 {
     private readonly ISetupWizardPort _setupWizard;
     private readonly IManifestPersistencePort _manifestPort;
     private readonly IEnvironmentConfigurationPort _envConfig;
     private readonly ILogger<SetupController> _logger;
     private readonly SetupController _controller;
+    private bool _disposed;
 
     public SetupControllerTests()
     {
@@ -40,6 +41,15 @@ public class SetupControllerTests
         };
         _controller.ControllerContext.HttpContext.Request.Scheme = "http";
         _controller.ControllerContext.HttpContext.Request.Host = new HostString("localhost:3000");
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _controller?.Dispose();
+            _disposed = true;
+        }
     }
 
     [Fact]

@@ -3,12 +3,18 @@
 
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
+
 using FluentAssertions;
+
 using Microsoft.Extensions.Logging;
+
 using NSubstitute;
+
 using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Infrastructure.Adapters.Idempotency;
+
 using StackExchange.Redis;
+
 using Xunit;
 
 namespace ProbotSharp.Infrastructure.Tests.Integration;
@@ -75,7 +81,11 @@ public sealed class RedisIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task ExistsAsync_WhenKeyDoesNotExist_ShouldReturnFalse()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var key = IdempotencyKey.Create(Guid.NewGuid().ToString());
 
@@ -89,7 +99,11 @@ public sealed class RedisIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task TryAcquireAsync_WhenKeyDoesNotExist_ShouldReturnTrue()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var key = IdempotencyKey.Create(Guid.NewGuid().ToString());
 
@@ -103,7 +117,11 @@ public sealed class RedisIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task TryAcquireAsync_WhenKeyExists_ShouldReturnFalse()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var key = IdempotencyKey.Create(Guid.NewGuid().ToString());
         await _sut!.TryAcquireAsync(key, TimeSpan.FromMinutes(5));
@@ -118,7 +136,11 @@ public sealed class RedisIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task TryAcquireAndExistsAsync_ShouldWorkTogether()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var key = IdempotencyKey.Create(Guid.NewGuid().ToString());
 
@@ -136,7 +158,11 @@ public sealed class RedisIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task TryAcquireAsync_WithTtl_ShouldExpireAfterTtl()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var key = IdempotencyKey.Create(Guid.NewGuid().ToString());
 
@@ -156,7 +182,11 @@ public sealed class RedisIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task ReleaseAsync_ShouldDeleteKey()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var key = IdempotencyKey.Create(Guid.NewGuid().ToString());
         await _sut!.TryAcquireAsync(key, TimeSpan.FromMinutes(5));
@@ -172,7 +202,11 @@ public sealed class RedisIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task ReleaseAsync_AfterRelease_ShouldAllowReacquisition()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var key = IdempotencyKey.Create(Guid.NewGuid().ToString());
         await _sut!.TryAcquireAsync(key, TimeSpan.FromMinutes(5));
@@ -188,7 +222,11 @@ public sealed class RedisIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task ConcurrentAcquires_ShouldOnlyAllowOneSuccess()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var key = IdempotencyKey.Create(Guid.NewGuid().ToString());
         var tasks = new List<Task<bool>>();
@@ -209,7 +247,11 @@ public sealed class RedisIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task MultipleDifferentKeys_ShouldStoreIndependently()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var key1 = IdempotencyKey.Create(Guid.NewGuid().ToString());
         var key2 = IdempotencyKey.Create(Guid.NewGuid().ToString());
@@ -233,7 +275,11 @@ public sealed class RedisIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task TryAcquireAsync_AfterRedisFlush_ShouldAllowNewAcquisition()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var key1 = IdempotencyKey.Create(Guid.NewGuid().ToString());
         await _sut!.TryAcquireAsync(key1, TimeSpan.FromMinutes(5));
@@ -258,7 +304,11 @@ public sealed class RedisIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task CleanupExpiredAsync_ShouldReturnZero()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange & Act
         var result = await _sut!.CleanupExpiredAsync();
 
@@ -269,7 +319,11 @@ public sealed class RedisIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task TryAcquireAsync_WithDefaultTtl_ShouldUse24Hours()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var key = IdempotencyKey.Create(Guid.NewGuid().ToString());
 
@@ -292,7 +346,11 @@ public sealed class RedisIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task TryAcquireAsync_WithMultipleKeys_ShouldHandleLargeVolume()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var keys = Enumerable.Range(1, 100)
             .Select(i => IdempotencyKey.Create($"webhook-{Guid.NewGuid()}"))
@@ -322,7 +380,11 @@ public sealed class RedisIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task TryAcquireAsync_WithVeryShortTtl_ShouldExpireQuickly()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var key = IdempotencyKey.Create(Guid.NewGuid().ToString());
 
@@ -344,7 +406,11 @@ public sealed class RedisIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task ConcurrentReadsAndWrites_ShouldHandleCorrectly()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var keys = Enumerable.Range(1, 20)
             .Select(i => IdempotencyKey.Create($"concurrent-{i}"))

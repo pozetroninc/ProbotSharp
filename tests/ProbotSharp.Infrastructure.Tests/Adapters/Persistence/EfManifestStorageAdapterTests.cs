@@ -8,11 +8,12 @@ using ProbotSharp.Infrastructure.Adapters.Persistence;
 
 namespace ProbotSharp.Infrastructure.Tests.Adapters.Persistence;
 
-public sealed class EfManifestStorageAdapterTests
+public sealed class EfManifestStorageAdapterTests : IDisposable
 {
     private readonly ProbotSharpDbContext _dbContext;
     private readonly EfManifestStorageAdapter _sut;
     private readonly ILogger<EfManifestStorageAdapter> _logger = Substitute.For<ILogger<EfManifestStorageAdapter>>();
+    private bool _disposed;
 
     public EfManifestStorageAdapterTests()
     {
@@ -22,6 +23,15 @@ public sealed class EfManifestStorageAdapterTests
 
         _dbContext = new ProbotSharpDbContext(options);
         _sut = new EfManifestStorageAdapter(_dbContext, _logger);
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _dbContext?.Dispose();
+            _disposed = true;
+        }
     }
 
     [Fact]

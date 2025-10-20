@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Newtonsoft.Json.Linq;
+
 using ProbotSharp.Domain.Attachments;
 using ProbotSharp.Domain.Context;
 
@@ -23,7 +24,7 @@ public class CommentAttachmentService
     /// <param name="context">The current Probot context.</param>
     public CommentAttachmentService(ProbotSharpContext context)
     {
-        _context = context ?? throw new ArgumentNullException(nameof(context));
+        this._context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
     /// <summary>
@@ -35,7 +36,7 @@ public class CommentAttachmentService
     /// <exception cref="InvalidOperationException">Thrown when the payload does not contain a comment context.</exception>
     public async Task AddAsync(CommentAttachment attachment, CancellationToken ct = default)
     {
-        await AddAsync(new[] { attachment }, ct);
+        await this.AddAsync(new[] { attachment }, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -49,22 +50,22 @@ public class CommentAttachmentService
     public async Task AddAsync(IEnumerable<CommentAttachment> attachments, CancellationToken ct = default)
     {
         // Get comment from payload
-        var commentId = GetCommentIdFromPayload(_context.Payload);
+        var commentId = GetCommentIdFromPayload(this._context.Payload);
         if (commentId == null)
         {
             throw new InvalidOperationException("Attachments require a comment context");
         }
 
-        if (_context.Repository == null)
+        if (this._context.Repository == null)
         {
             throw new InvalidOperationException("Repository information is required to add attachments");
         }
 
         // Fetch current comment body
-        var comment = await _context.GitHub.Issue.Comment.Get(
-            _context.Repository.Owner,
-            _context.Repository.Name,
-            commentId.Value);
+        var comment = await this._context.GitHub.Issue.Comment.Get(
+            this._context.Repository.Owner,
+            this._context.Repository.Name,
+            commentId.Value).ConfigureAwait(false);
 
         var currentBody = comment.Body;
 
@@ -85,11 +86,11 @@ public class CommentAttachmentService
         }
 
         // Update comment
-        await _context.GitHub.Issue.Comment.Update(
-            _context.Repository.Owner,
-            _context.Repository.Name,
+        await this._context.GitHub.Issue.Comment.Update(
+            this._context.Repository.Owner,
+            this._context.Repository.Name,
             commentId.Value,
-            newBody);
+            newBody).ConfigureAwait(false);
     }
 
     /// <summary>

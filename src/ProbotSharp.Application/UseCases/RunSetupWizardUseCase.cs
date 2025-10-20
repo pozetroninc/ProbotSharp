@@ -17,12 +17,25 @@ namespace ProbotSharp.Application.UseCases;
 /// </summary>
 public sealed class RunSetupWizardUseCase : ISetupWizardPort
 {
+    private static readonly JsonSerializerOptions s_jsonOptions = new()
+    {
+        WriteIndented = true,
+    };
+
     private readonly IManifestPersistencePort _manifestPersistence;
     private readonly IGitHubAppManifestPort _appManifest;
     private readonly IEnvironmentConfigurationPort _envConfig;
     private readonly IWebhookChannelPort _webhookChannel;
     private readonly ILoggingPort _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RunSetupWizardUseCase"/> class.
+    /// </summary>
+    /// <param name="manifestPersistence">The manifest persistence port for storing GitHub App manifests.</param>
+    /// <param name="appManifest">The GitHub App manifest port for OAuth app registration.</param>
+    /// <param name="envConfig">The environment configuration port for credential management.</param>
+    /// <param name="webhookChannel">The webhook channel port for creating webhook proxy channels.</param>
+    /// <param name="logger">The logging port for recording setup operations.</param>
     public RunSetupWizardUseCase(
         IManifestPersistencePort manifestPersistence,
         IGitHubAppManifestPort appManifest,
@@ -30,13 +43,19 @@ public sealed class RunSetupWizardUseCase : ISetupWizardPort
         IWebhookChannelPort webhookChannel,
         ILoggingPort logger)
     {
-        _manifestPersistence = manifestPersistence;
-        _appManifest = appManifest;
-        _envConfig = envConfig;
-        _webhookChannel = webhookChannel;
-        _logger = logger;
+        this._manifestPersistence = manifestPersistence;
+        this._appManifest = appManifest;
+        this._envConfig = envConfig;
+        this._webhookChannel = webhookChannel;
+        this._logger = logger;
     }
 
+    /// <summary>
+    /// Creates a GitHub App manifest JSON for the setup wizard.
+    /// </summary>
+    /// <param name="command">The command containing app name, description, and URLs.</param>
+    /// <param name="cancellationToken">Cancellation token for async operation.</param>
+    /// <returns>Result containing the manifest JSON string.</returns>
     public async Task<Result<string>> CreateManifestAsync(
         CreateManifestCommand command,
         CancellationToken cancellationToken = default)
@@ -81,13 +100,10 @@ public sealed class RunSetupWizardUseCase : ISetupWizardPort
             version = "v1"
         };
 
-        var manifestJson = JsonSerializer.Serialize(manifest, new JsonSerializerOptions
-        {
-            WriteIndented = true
-        });
+        var manifestJson = JsonSerializer.Serialize(manifest, s_jsonOptions);
 
         // Step 2: Save the manifest
-        var saveResult = await _manifestPersistence.SaveAsync(manifestJson, cancellationToken);
+        var saveResult = await this._manifestPersistence.SaveAsync(manifestJson, cancellationToken).ConfigureAwait(false);
         if (!saveResult.IsSuccess)
         {
             return saveResult.Error is null
@@ -97,11 +113,17 @@ public sealed class RunSetupWizardUseCase : ISetupWizardPort
                 : Result<string>.Failure(saveResult.Error.Value);
         }
 
-        _logger.LogInformation("Manifest created successfully for app: {AppName}", command.AppName);
+        this._logger.LogInformation("Manifest created successfully for app: {AppName}", command.AppName);
 
         return Result<string>.Success(manifestJson);
     }
 
+    /// <summary>
+    /// Gets or creates a GitHub App manifest and returns the GitHub creation URL.
+    /// </summary>
+    /// <param name="command">The command containing app configuration for manifest creation.</param>
+    /// <param name="cancellationToken">Cancellation token for async operation.</param>
+    /// <returns>Result containing the manifest and GitHub App creation URL.</returns>
     public async Task<Result<GetManifestResponse>> GetManifestAsync(
         GetManifestCommand command,
         CancellationToken cancellationToken = default)
@@ -116,7 +138,7 @@ public sealed class RunSetupWizardUseCase : ISetupWizardPort
         }
 
         // Step 1: Try to get existing manifest
-        var manifestResult = await _manifestPersistence.GetAsync(cancellationToken);
+        var manifestResult = await this._manifestPersistence.GetAsync(cancellationToken).ConfigureAwait(false);
 
         string manifestJson;
         if (manifestResult.IsSuccess && !string.IsNullOrWhiteSpace(manifestResult.Value))
@@ -134,7 +156,7 @@ public sealed class RunSetupWizardUseCase : ISetupWizardPort
                 command.HomepageUrl,
                 command.IsPublic);
 
-            var createResult = await CreateManifestAsync(createCommand, cancellationToken);
+            var createResult = await this.CreateManifestAsync(createCommand, cancellationToken).ConfigureAwait(false);
             if (!createResult.IsSuccess)
             {
                 return createResult.Error is null
@@ -165,6 +187,12 @@ public sealed class RunSetupWizardUseCase : ISetupWizardPort
         return Result<GetManifestResponse>.Success(response);
     }
 
+    /// <summary>
+    /// Completes the GitHub App setup by exchanging OAuth code for credentials.
+    /// </summary>
+    /// <param name="command">The command containing the OAuth code from GitHub callback.</param>
+    /// <param name="cancellationToken">Cancellation token for async operation.</param>
+    /// <returns>Result containing the GitHub App HTML URL.</returns>
     public async Task<Result<string>> CompleteSetupAsync(
         CompleteSetupCommand command,
         CancellationToken cancellationToken = default)
@@ -178,13 +206,13 @@ public sealed class RunSetupWizardUseCase : ISetupWizardPort
                 "OAuth code is required to complete setup");
         }
 
-        _logger.LogInformation("Completing setup with OAuth code");
+        this._logger.LogInformation("Completing setup with OAuth code");
 
         // Step 1: Exchange OAuth code for app credentials
-        var credentialsResult = await _appManifest.CreateAppFromCodeAsync(
+        var credentialsResult = await this._appManifest.CreateAppFromCodeAsync(
             command.Code,
             command.BaseUrl,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         if (!credentialsResult.IsSuccess)
         {
@@ -204,13 +232,13 @@ public sealed class RunSetupWizardUseCase : ISetupWizardPort
         }
 
         // Step 2: Save credentials to environment configuration
-        var saveResult = await _envConfig.SaveAppCredentialsAsync(
+        var saveResult = await this._envConfig.SaveAppCredentialsAsync(
             credentials.AppId,
             credentials.PrivateKey,
             credentials.WebhookSecret,
             credentials.ClientId,
             credentials.ClientSecret,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         if (!saveResult.IsSuccess)
         {
@@ -221,29 +249,35 @@ public sealed class RunSetupWizardUseCase : ISetupWizardPort
                 : Result<string>.Failure(saveResult.Error.Value);
         }
 
-        _logger.LogInformation(
+        this._logger.LogInformation(
             "Setup completed successfully. App ID: {AppId}",
             credentials.AppId.Value);
 
         return Result<string>.Success(credentials.HtmlUrl.ToString());
     }
 
+    /// <summary>
+    /// Imports manually provided GitHub App credentials into the environment configuration.
+    /// </summary>
+    /// <param name="command">The command containing app ID, private key, and webhook secret.</param>
+    /// <param name="cancellationToken">Cancellation token for async operation.</param>
+    /// <returns>Result indicating success or failure.</returns>
     public async Task<Result> ImportAppCredentialsAsync(
         ImportAppCredentialsCommand command,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        _logger.LogInformation("Importing app credentials for App ID: {AppId}", command.AppId.Value);
+        this._logger.LogInformation("Importing app credentials for App ID: {AppId}", command.AppId.Value);
 
         // Save credentials to environment configuration
-        var saveResult = await _envConfig.SaveAppCredentialsAsync(
+        var saveResult = await this._envConfig.SaveAppCredentialsAsync(
             command.AppId,
             command.PrivateKey,
             command.WebhookSecret,
             clientId: null,
             clientSecret: null,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         if (!saveResult.IsSuccess)
         {
@@ -254,21 +288,27 @@ public sealed class RunSetupWizardUseCase : ISetupWizardPort
                 : Result.Failure(saveResult.Error.Value);
         }
 
-        _logger.LogInformation("Credentials imported successfully");
+        this._logger.LogInformation("Credentials imported successfully");
 
         return Result.Success();
     }
 
+    /// <summary>
+    /// Creates a webhook proxy channel (e.g., Smee.io) for local development.
+    /// </summary>
+    /// <param name="command">The command to create a webhook channel.</param>
+    /// <param name="cancellationToken">Cancellation token for async operation.</param>
+    /// <returns>Result containing the webhook proxy URL and channel information.</returns>
     public async Task<Result<CreateWebhookChannelResponse>> CreateWebhookChannelAsync(
         CreateWebhookChannelCommand command,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        _logger.LogInformation("Creating webhook proxy channel");
+        this._logger.LogInformation("Creating webhook proxy channel");
 
         // Step 1: Create webhook channel (e.g., Smee.io)
-        var channelResult = await _webhookChannel.CreateChannelAsync(cancellationToken);
+        var channelResult = await this._webhookChannel.CreateChannelAsync(cancellationToken).ConfigureAwait(false);
         if (!channelResult.IsSuccess)
         {
             return channelResult.Error is null
@@ -287,19 +327,19 @@ public sealed class RunSetupWizardUseCase : ISetupWizardPort
         }
 
         // Step 2: Save webhook proxy URL to environment
-        var saveResult = await _envConfig.SaveWebhookProxyUrlAsync(
+        var saveResult = await this._envConfig.SaveWebhookProxyUrlAsync(
             channel.WebhookProxyUrl,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         if (!saveResult.IsSuccess)
         {
-            _logger.LogWarning(
+            this._logger.LogWarning(
                 "Failed to save webhook proxy URL to environment: {Error}",
                 saveResult.Error?.Message);
             // Don't fail the operation, just log the warning
         }
 
-        _logger.LogInformation(
+        this._logger.LogInformation(
             "Webhook proxy channel created: {ProxyUrl}",
             channel.WebhookProxyUrl);
 

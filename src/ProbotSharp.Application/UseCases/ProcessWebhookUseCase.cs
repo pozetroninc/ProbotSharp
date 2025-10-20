@@ -14,6 +14,11 @@ using ProbotSharp.Shared.Abstractions;
 
 namespace ProbotSharp.Application.UseCases;
 
+/// <summary>
+/// Use case for processing GitHub webhook deliveries.
+/// Validates signatures, checks for duplicates, persists deliveries, and routes events to handlers.
+/// Implements distributed tracing and metrics collection for observability.
+/// </summary>
 public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
 {
     private readonly IWebhookStoragePort _storage;
@@ -27,6 +32,19 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
     private readonly EventRouter _eventRouter;
     private readonly IServiceProvider _serviceProvider;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ProcessWebhookUseCase"/> class.
+    /// </summary>
+    /// <param name="storage">The webhook storage port for persisting deliveries.</param>
+    /// <param name="clock">The clock port for timestamp generation.</param>
+    /// <param name="unitOfWork">The unit of work port for transaction management.</param>
+    /// <param name="appConfig">The application configuration port for retrieving webhook secret.</param>
+    /// <param name="signatureValidator">The webhook signature validator.</param>
+    /// <param name="tracing">The tracing port for distributed tracing.</param>
+    /// <param name="metrics">The metrics port for observability.</param>
+    /// <param name="contextFactory">The context factory for creating ProbotSharp contexts.</param>
+    /// <param name="eventRouter">The event router for routing webhooks to handlers.</param>
+    /// <param name="serviceProvider">The service provider for dependency resolution.</param>
     public ProcessWebhookUseCase(
         IWebhookStoragePort storage,
         IClockPort clock,
@@ -39,24 +57,30 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
         EventRouter eventRouter,
         IServiceProvider serviceProvider)
     {
-        _storage = storage;
-        _clock = clock;
-        _unitOfWork = unitOfWork;
-        _appConfig = appConfig;
-        _signatureValidator = signatureValidator;
-        _tracing = tracing;
-        _metrics = metrics;
-        _contextFactory = contextFactory;
-        _eventRouter = eventRouter;
-        _serviceProvider = serviceProvider;
+        this._storage = storage;
+        this._clock = clock;
+        this._unitOfWork = unitOfWork;
+        this._appConfig = appConfig;
+        this._signatureValidator = signatureValidator;
+        this._tracing = tracing;
+        this._metrics = metrics;
+        this._contextFactory = contextFactory;
+        this._eventRouter = eventRouter;
+        this._serviceProvider = serviceProvider;
     }
 
+    /// <summary>
+    /// Processes a GitHub webhook delivery asynchronously.
+    /// </summary>
+    /// <param name="command">The command containing webhook delivery information.</param>
+    /// <param name="cancellationToken">Cancellation token for async operation.</param>
+    /// <returns>A result indicating success or failure of webhook processing.</returns>
     public async Task<Result> ProcessAsync(ProcessWebhookCommand command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
 
         // Start distributed tracing span for webhook processing
-        using var activity = _tracing.StartActivity(
+        using var activity = this._tracing.StartActivity(
             "webhook.process",
             ActivityKind.Server,
             tags:
@@ -69,24 +93,24 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
         try
         {
             // Record metrics for webhook received
-            _metrics.IncrementCounter(
+            this._metrics.IncrementCounter(
                 "webhook.received",
                 1,
                 [
                     new("event", command.EventName.Value),
                 ]);
 
-            using var _ = _metrics.MeasureDuration(
+            using var _ = this._metrics.MeasureDuration(
                 "webhook.processing.duration",
                 [
                     new("event", command.EventName.Value),
                 ]);
 
-            var result = await _unitOfWork.ExecuteAsync(async ct =>
+            var result = await this._unitOfWork.ExecuteAsync(async ct =>
             {
                 // Step 1: Validate webhook signature (security first)
-                _tracing.AddEvent("webhook.validate_signature");
-                var secretResult = await _appConfig.GetWebhookSecretAsync(ct).ConfigureAwait(false);
+                this._tracing.AddEvent("webhook.validate_signature");
+                var secretResult = await this._appConfig.GetWebhookSecretAsync(ct).ConfigureAwait(false);
                 if (!secretResult.IsSuccess)
                 {
                     return secretResult.Error is null
@@ -100,15 +124,15 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
                     return Result.Failure("webhook_secret_empty", "Webhook secret is not configured");
                 }
 
-                var isSignatureValid = _signatureValidator.IsSignatureValid(
+                var isSignatureValid = this._signatureValidator.IsSignatureValid(
                     command.RawPayload,
                     secret,
                     command.Signature.Value);
 
                 if (!isSignatureValid)
                 {
-                    _tracing.AddEvent("webhook.signature_invalid");
-                    _metrics.IncrementCounter(
+                    this._tracing.AddEvent("webhook.signature_invalid");
+                    this._metrics.IncrementCounter(
                         "webhook.signature_invalid",
                         1,
                         [
@@ -118,8 +142,8 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
                 }
 
                 // Step 2: Check for duplicate delivery (idempotency)
-                _tracing.AddEvent("webhook.check_duplicate");
-                var existingResult = await _storage.GetAsync(command.DeliveryId, ct).ConfigureAwait(false);
+                this._tracing.AddEvent("webhook.check_duplicate");
+                var existingResult = await this._storage.GetAsync(command.DeliveryId, ct).ConfigureAwait(false);
                 if (!existingResult.IsSuccess)
                 {
                     return existingResult.Error is null
@@ -130,8 +154,8 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
                 if (existingResult.Value is not null)
                 {
                     // Duplicate delivery detected - return success (idempotent operation)
-                    _tracing.AddEvent("webhook.duplicate_delivery");
-                    _metrics.IncrementCounter(
+                    this._tracing.AddEvent("webhook.duplicate_delivery");
+                    this._metrics.IncrementCounter(
                         "webhook.duplicate",
                         1,
                         [
@@ -141,15 +165,15 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
                 }
 
                 // Step 3: Process and save webhook delivery
-                _tracing.AddEvent("webhook.save_delivery");
+                this._tracing.AddEvent("webhook.save_delivery");
                 var delivery = WebhookDelivery.Create(
                     command.DeliveryId,
                     command.EventName,
-                    _clock.UtcNow,
+                    this._clock.UtcNow,
                     command.Payload,
                     command.InstallationId);
 
-                var saveResult = await _storage.SaveAsync(delivery, ct).ConfigureAwait(false);
+                var saveResult = await this._storage.SaveAsync(delivery, ct).ConfigureAwait(false);
                 if (!saveResult.IsSuccess)
                 {
                     return saveResult.Error is null
@@ -157,7 +181,7 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
                         : Result.Failure(saveResult.Error.Value);
                 }
 
-                _metrics.IncrementCounter(
+                this._metrics.IncrementCounter(
                     "webhook.processed",
                     1,
                     [
@@ -165,19 +189,19 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
                     ]);
 
                 // Step 4: Route event to registered handlers
-                _tracing.AddEvent("webhook.route_to_handlers");
+                this._tracing.AddEvent("webhook.route_to_handlers");
                 try
                 {
-                    var context = await _contextFactory.CreateAsync(delivery, ct).ConfigureAwait(false);
-                    await _eventRouter.RouteAsync(context, _serviceProvider, ct).ConfigureAwait(false);
-                    _tracing.AddEvent("webhook.handlers_completed");
+                    var context = await this._contextFactory.CreateAsync(delivery, ct).ConfigureAwait(false);
+                    await this._eventRouter.RouteAsync(context, this._serviceProvider, ct).ConfigureAwait(false);
+                    this._tracing.AddEvent("webhook.handlers_completed");
                 }
                 catch (Exception routingEx)
                 {
                     // Log routing errors but don't fail the webhook processing
                     // The webhook has been successfully persisted at this point
-                    _tracing.AddEvent("webhook.routing_error");
-                    _metrics.IncrementCounter(
+                    this._tracing.AddEvent("webhook.routing_error");
+                    this._metrics.IncrementCounter(
                         "webhook.routing_error",
                         1,
                         [
@@ -194,8 +218,8 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
 
             if (!result.IsSuccess)
             {
-                _tracing.AddTags([new("error", true), new("error.type", result.Error?.Code)]);
-                _metrics.IncrementCounter(
+                this._tracing.AddTags([new("error", true), new("error.type", result.Error?.Code)]);
+                this._metrics.IncrementCounter(
                     "webhook.processing_failed",
                     1,
                     [
@@ -208,8 +232,8 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
         }
         catch (Exception ex)
         {
-            _tracing.RecordException(ex);
-            _metrics.IncrementCounter(
+            this._tracing.RecordException(ex);
+            this._metrics.IncrementCounter(
                 "webhook.processing_exception",
                 1,
                 [
@@ -220,4 +244,3 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
         }
     }
 }
-

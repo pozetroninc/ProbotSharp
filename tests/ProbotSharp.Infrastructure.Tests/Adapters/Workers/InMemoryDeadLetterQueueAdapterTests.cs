@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using Microsoft.Extensions.Logging;
+
 using NSubstitute;
+
 using ProbotSharp.Application.Models;
 using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Infrastructure.Adapters.Workers;
@@ -54,5 +56,3 @@ public sealed class InMemoryDeadLetterQueueAdapterTests
             "{\"ok\":true}"),
             attempt);
 }
-
-

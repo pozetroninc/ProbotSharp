@@ -3,7 +3,9 @@
 
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+
 using NSubstitute;
+
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Application.Services;
 using ProbotSharp.Domain.Models;
@@ -12,12 +14,13 @@ using ProbotSharp.Shared.Abstractions;
 
 namespace ProbotSharp.Application.Tests.Services;
 
-public class RepositoryConfigurationServiceTests
+public class RepositoryConfigurationServiceTests : IDisposable
 {
     private readonly IRepositoryContentPort _contentPort;
     private readonly IMemoryCache _cache;
     private readonly ILogger<RepositoryConfigurationService> _logger;
     private readonly RepositoryConfigurationService _service;
+    private bool _disposed;
 
     public RepositoryConfigurationServiceTests()
     {
@@ -25,6 +28,25 @@ public class RepositoryConfigurationServiceTests
         _cache = new MemoryCache(new MemoryCacheOptions());
         _logger = Substitute.For<ILogger<RepositoryConfigurationService>>();
         _service = new RepositoryConfigurationService(_contentPort, _cache, _logger);
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                (_cache as IDisposable)?.Dispose();
+            }
+
+            _disposed = true;
+        }
     }
 
     [Fact]

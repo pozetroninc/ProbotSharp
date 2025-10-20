@@ -28,6 +28,7 @@
         "node_modules/",
         ".git/",
         ".aidocs/",
+        ".worktrees/",
         "TEST-MARKDOWN-VERIFIER.md"
       ],
       "windows": {
@@ -38,6 +39,7 @@
           "node_modules/",
           ".git/",
           ".aidocs/",
+          ".worktrees/",
           "TEST-MARKDOWN-VERIFIER.md"
         ]
       }

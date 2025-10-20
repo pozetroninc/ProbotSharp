@@ -11,6 +11,11 @@ namespace ProbotSharp.Domain.Specifications;
 /// </summary>
 public sealed class ActiveInstallationSpecification : Specification<Installation>
 {
+    /// <summary>
+    /// Determines whether the specified installation is active.
+    /// </summary>
+    /// <param name="candidate">The installation to evaluate.</param>
+    /// <returns>True if the installation has one or more repositories; otherwise, false.</returns>
     public override bool IsSatisfiedBy(Installation candidate)
     {
         ArgumentNullException.ThrowIfNull(candidate);

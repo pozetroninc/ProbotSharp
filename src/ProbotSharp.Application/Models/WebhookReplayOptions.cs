@@ -10,37 +10,37 @@ public sealed class WebhookReplayOptions
 {
     /// <summary>
     /// Maximum number of retry attempts before moving to dead-letter queue.
-    /// Default: 5
+    /// Default: 5.
     /// </summary>
     public int MaxRetryAttempts { get; set; } = 5;
 
     /// <summary>
     /// Initial backoff delay in seconds for the first retry.
-    /// Default: 2 seconds
+    /// Default: 2 seconds.
     /// </summary>
     public int InitialBackoffSeconds { get; set; } = 2;
 
     /// <summary>
     /// Maximum backoff delay in seconds.
-    /// Default: 300 seconds (5 minutes)
+    /// Default: 300 seconds (5 minutes).
     /// </summary>
     public int MaxBackoffSeconds { get; set; } = 300;
 
     /// <summary>
     /// Backoff multiplier for exponential backoff.
-    /// Default: 2.0 (doubles each retry)
+    /// Default: 2.0 (doubles each retry).
     /// </summary>
     public double BackoffMultiplier { get; set; } = 2.0;
 
     /// <summary>
     /// Maximum jitter percentage (0-1) to add randomness to backoff delays.
-    /// Default: 0.1 (10% jitter)
+    /// Default: 0.1 (10% jitter).
     /// </summary>
     public double JitterFactor { get; set; } = 0.1;
 
     /// <summary>
     /// Poll interval in seconds for checking the queue.
-    /// Default: 1 second
+    /// Default: 1 second.
     /// </summary>
     public int PollIntervalSeconds { get; set; } = 1;
 
@@ -50,34 +50,34 @@ public sealed class WebhookReplayOptions
     /// <exception cref="ArgumentOutOfRangeException">Thrown when any option is invalid.</exception>
     public void Validate()
     {
-        if (MaxRetryAttempts < 1)
+        if (this.MaxRetryAttempts < 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(MaxRetryAttempts), "Must be at least 1");
+            throw new ArgumentOutOfRangeException(nameof(this.MaxRetryAttempts), "Must be at least 1");
         }
 
-        if (InitialBackoffSeconds < 0)
+        if (this.InitialBackoffSeconds < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(InitialBackoffSeconds), "Cannot be negative");
+            throw new ArgumentOutOfRangeException(nameof(this.InitialBackoffSeconds), "Cannot be negative");
         }
 
-        if (MaxBackoffSeconds < InitialBackoffSeconds)
+        if (this.MaxBackoffSeconds < this.InitialBackoffSeconds)
         {
-            throw new ArgumentOutOfRangeException(nameof(MaxBackoffSeconds), "Cannot be less than InitialBackoffSeconds");
+            throw new ArgumentOutOfRangeException(nameof(this.MaxBackoffSeconds), "Cannot be less than InitialBackoffSeconds");
         }
 
-        if (BackoffMultiplier <= 1.0)
+        if (this.BackoffMultiplier <= 1.0)
         {
-            throw new ArgumentOutOfRangeException(nameof(BackoffMultiplier), "Must be greater than 1.0");
+            throw new ArgumentOutOfRangeException(nameof(this.BackoffMultiplier), "Must be greater than 1.0");
         }
 
-        if (JitterFactor is < 0 or > 1)
+        if (this.JitterFactor is < 0 or > 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(JitterFactor), "Must be between 0 and 1");
+            throw new ArgumentOutOfRangeException(nameof(this.JitterFactor), "Must be between 0 and 1");
         }
 
-        if (PollIntervalSeconds < 0)
+        if (this.PollIntervalSeconds < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(PollIntervalSeconds), "Cannot be negative");
+            throw new ArgumentOutOfRangeException(nameof(this.PollIntervalSeconds), "Cannot be negative");
         }
     }
 }

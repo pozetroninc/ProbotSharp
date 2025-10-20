@@ -64,4 +64,3 @@ public sealed class InMemoryAccessTokenCacheAdapter : IAccessTokenCachePort
         return string.Create(CultureInfo.InvariantCulture, $"installation-token:{installationId.Value}");
     }
 }
-

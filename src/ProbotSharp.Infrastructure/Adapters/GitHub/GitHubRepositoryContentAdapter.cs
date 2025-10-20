@@ -1,11 +1,16 @@
 using System.Text;
+
 using Microsoft.Extensions.Logging;
+
 using Octokit;
+
 using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Inbound;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Shared.Abstractions;
+
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
 
 namespace ProbotSharp.Infrastructure.Adapters.GitHub;
 
@@ -18,12 +23,17 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
     private readonly IInstallationAuthenticationPort _installationAuth;
     private readonly ILogger<GitHubRepositoryContentAdapter> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GitHubRepositoryContentAdapter"/> class.
+    /// </summary>
+    /// <param name="installationAuth">The installation authentication port for obtaining GitHub access tokens.</param>
+    /// <param name="logger">The logger for recording operations and errors.</param>
     public GitHubRepositoryContentAdapter(
         IInstallationAuthenticationPort installationAuth,
         ILogger<GitHubRepositoryContentAdapter> logger)
     {
-        _installationAuth = installationAuth;
-        _logger = logger;
+        this._installationAuth = installationAuth;
+        this._logger = logger;
     }
 
     /// <inheritdoc />
@@ -36,7 +46,7 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
         {
             // Authenticate installation
             var authCommand = new AuthenticateInstallationCommand(Domain.ValueObjects.InstallationId.Create(installationId));
-            var authResult = await _installationAuth.AuthenticateAsync(authCommand, cancellationToken);
+            var authResult = await this._installationAuth.AuthenticateAsync(authCommand, cancellationToken).ConfigureAwait(false);
 
             if (!authResult.IsSuccess || authResult.Value == null)
             {
@@ -52,7 +62,7 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
                 Credentials = new Credentials(token.Value),
             };
 
-            _logger.LogDebug(
+            this._logger.LogDebug(
                 "Fetching repository content: {Owner}/{Repository}/{Path} (ref: {Ref})",
                 path.Owner, path.Repository, path.Path, path.Ref ?? "default");
 
@@ -67,19 +77,19 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
                         path.Owner,
                         path.Repository,
                         path.Path,
-                        path.Ref);
+                        path.Ref).ConfigureAwait(false);
                 }
                 else
                 {
                     contents = await client.Repository.Content.GetAllContents(
                         path.Owner,
                         path.Repository,
-                        path.Path);
+                        path.Path).ConfigureAwait(false);
                 }
             }
             catch (NotFoundException)
             {
-                _logger.LogDebug(
+                this._logger.LogDebug(
                     "File not found: {Owner}/{Repository}/{Path}",
                     path.Owner, path.Repository, path.Path);
 
@@ -113,7 +123,7 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
             {
                 // For large files, download via URL
                 using var httpClient = new HttpClient();
-                fileContent = await httpClient.GetStringAsync(content.DownloadUrl, cancellationToken);
+                fileContent = await httpClient.GetStringAsync(content.DownloadUrl, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -126,7 +136,7 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
                 content.Sha,
                 path);
 
-            _logger.LogDebug(
+            this._logger.LogDebug(
                 "Successfully fetched content: {Owner}/{Repository}/{Path} (SHA: {Sha})",
                 path.Owner, path.Repository, path.Path, content.Sha);
 
@@ -134,7 +144,7 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
         }
         catch (ApiException ex)
         {
-            _logger.LogError(
+            this._logger.LogError(
                 ex,
                 "GitHub API error fetching content: {Owner}/{Repository}/{Path}",
                 path.Owner, path.Repository, path.Path);
@@ -144,7 +154,7 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            this._logger.LogError(
                 ex,
                 "Unexpected error fetching content: {Owner}/{Repository}/{Path}",
                 path.Owner, path.Repository, path.Path);
@@ -164,7 +174,7 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
         {
             // Authenticate installation
             var authCommand = new AuthenticateInstallationCommand(Domain.ValueObjects.InstallationId.Create(installationId));
-            var authResult = await _installationAuth.AuthenticateAsync(authCommand, cancellationToken);
+            var authResult = await this._installationAuth.AuthenticateAsync(authCommand, cancellationToken).ConfigureAwait(false);
 
             if (!authResult.IsSuccess || authResult.Value == null)
             {
@@ -185,14 +195,14 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
                     path.Owner,
                     path.Repository,
                     path.Path,
-                    path.Ref);
+                    path.Ref).ConfigureAwait(false);
             }
             else
             {
                 await client.Repository.Content.GetAllContents(
                     path.Owner,
                     path.Repository,
-                    path.Path);
+                    path.Path).ConfigureAwait(false);
             }
 
             return true;
@@ -203,7 +213,7 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(
+            this._logger.LogWarning(
                 ex,
                 "Error checking file existence: {Owner}/{Repository}/{Path}",
                 path.Owner, path.Repository, path.Path);
@@ -222,7 +232,7 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
         {
             // Authenticate installation
             var authCommand = new AuthenticateInstallationCommand(Domain.ValueObjects.InstallationId.Create(installationId));
-            var authResult = await _installationAuth.AuthenticateAsync(authCommand, cancellationToken);
+            var authResult = await this._installationAuth.AuthenticateAsync(authCommand, cancellationToken).ConfigureAwait(false);
 
             if (!authResult.IsSuccess || authResult.Value == null)
             {
@@ -238,11 +248,11 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
                 Credentials = new Credentials(token.Value),
             };
 
-            _logger.LogDebug(
+            this._logger.LogDebug(
                 "Fetching default branch for {Owner}/{Repository}",
                 owner, repository);
 
-            var repo = await client.Repository.Get(owner, repository);
+            var repo = await client.Repository.Get(owner, repository).ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(repo.DefaultBranch))
             {
@@ -250,7 +260,7 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
                     "Validation", $"Repository {owner}/{repository} has no default branch");
             }
 
-            _logger.LogDebug(
+            this._logger.LogDebug(
                 "Default branch for {Owner}/{Repository}: {Branch}",
                 owner, repository, repo.DefaultBranch);
 
@@ -258,7 +268,7 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
         }
         catch (ApiException ex)
         {
-            _logger.LogError(
+            this._logger.LogError(
                 ex,
                 "GitHub API error fetching default branch: {Owner}/{Repository}",
                 owner, repository);
@@ -268,7 +278,7 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            this._logger.LogError(
                 ex,
                 "Unexpected error fetching default branch: {Owner}/{Repository}",
                 owner, repository);
@@ -278,3 +288,5 @@ public sealed class GitHubRepositoryContentAdapter : IRepositoryContentPort
         }
     }
 }
+
+#pragma warning restore CA1848

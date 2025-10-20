@@ -7,6 +7,9 @@ using System.Text;
 
 namespace ProbotSharp.Domain.ValueObjects;
 
+/// <summary>
+/// Represents a webhook signature used for validating GitHub webhook payloads.
+/// </summary>
 public sealed record class WebhookSignature
 {
     private const string Prefix = "sha256=";
@@ -16,8 +19,16 @@ public sealed record class WebhookSignature
         this.Value = value;
     }
 
+    /// <summary>
+    /// Gets the signature value.
+    /// </summary>
     public string Value { get; }
 
+    /// <summary>
+    /// Creates a new webhook signature from a string value.
+    /// </summary>
+    /// <param name="value">The signature value (must start with 'sha256=').</param>
+    /// <returns>A new webhook signature instance.</returns>
     public static WebhookSignature Create(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -39,6 +50,13 @@ public sealed record class WebhookSignature
         return new WebhookSignature(Prefix + hash.ToLowerInvariant());
     }
 
+    /// <summary>
+    /// Validates a webhook payload against a signature using the specified secret.
+    /// </summary>
+    /// <param name="payload">The webhook payload.</param>
+    /// <param name="secret">The webhook secret.</param>
+    /// <param name="signature">The signature to validate against.</param>
+    /// <returns>True if the signature is valid; otherwise, false.</returns>
     public static bool TryValidatePayload(string payload, string secret, WebhookSignature signature)
     {
         ArgumentNullException.ThrowIfNull(payload);
@@ -54,9 +72,12 @@ public sealed record class WebhookSignature
             Encoding.UTF8.GetBytes(signature.Value));
     }
 
+    /// <summary>
+    /// Returns the signature value as a string.
+    /// </summary>
+    /// <returns>The signature value.</returns>
     public override string ToString() => this.Value;
 
     private static bool IsHexCharacter(char c)
         => (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
-

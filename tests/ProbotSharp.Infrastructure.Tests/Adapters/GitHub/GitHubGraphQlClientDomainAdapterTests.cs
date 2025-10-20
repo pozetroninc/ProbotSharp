@@ -28,7 +28,7 @@ public sealed class GitHubGraphQlClientDomainAdapterTests
     [Fact]
     public async Task ExecuteAsync_Success_ShouldPassThrough()
     {
-        var port = new StubPort(Result<Dictionary<string, object>>.Success(new Dictionary<string, object>{{"ok", true}}));
+        var port = new StubPort(Result<Dictionary<string, object>>.Success(new Dictionary<string, object> { { "ok", true } }));
         var sut = new GitHubGraphQlClientDomainAdapter(port);
         var res = await sut.ExecuteAsync<Dictionary<string, object>>("query {}");
         res.IsSuccess.Should().BeTrue();
@@ -45,5 +45,3 @@ public sealed class GitHubGraphQlClientDomainAdapterTests
         res.ErrorCode.Should().Be("x");
     }
 }
-
-

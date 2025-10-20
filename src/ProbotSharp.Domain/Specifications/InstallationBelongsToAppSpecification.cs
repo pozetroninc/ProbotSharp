@@ -17,15 +17,20 @@ public sealed class InstallationBelongsToAppSpecification : Specification<Instal
     /// <summary>
     /// Initializes a new instance for the specified GitHub App.
     /// </summary>
-    /// <param name="app">The GitHub App to validate against</param>
+    /// <param name="app">The GitHub App to validate against.</param>
     public InstallationBelongsToAppSpecification(GitHubApp app)
     {
-        _app = app ?? throw new ArgumentNullException(nameof(app));
+        this._app = app ?? throw new ArgumentNullException(nameof(app));
     }
 
+    /// <summary>
+    /// Determines whether the specified installation belongs to the configured GitHub App.
+    /// </summary>
+    /// <param name="candidate">The installation to evaluate.</param>
+    /// <returns>True if the installation belongs to the app; otherwise, false.</returns>
     public override bool IsSatisfiedBy(Installation candidate)
     {
         ArgumentNullException.ThrowIfNull(candidate);
-        return _app.Installations.Any(i => i.Id.Equals(candidate.Id));
+        return this._app.Installations.Any(i => i.Id.Equals(candidate.Id));
     }
 }

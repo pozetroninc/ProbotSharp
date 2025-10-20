@@ -2,12 +2,17 @@
 // Licensed under the MIT License.
 
 using FluentAssertions;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+
 using NSubstitute;
+
 using ProbotSharp.Infrastructure.Adapters.Persistence;
 using ProbotSharp.Infrastructure.Adapters.Persistence.Models;
+
 using Testcontainers.PostgreSql;
+
 using Xunit;
 
 namespace ProbotSharp.IntegrationTests;
@@ -17,7 +22,9 @@ namespace ProbotSharp.IntegrationTests;
 /// Tests real database behavior including migrations, CRUD operations, transactions, and concurrency.
 /// </summary>
 [Collection("Database Integration Tests")]
+#pragma warning disable CA1001 // Disposable fields are properly disposed via IAsyncLifetime.DisposeAsync()
 public sealed class DatabaseIntegrationTests : IAsyncLifetime
+#pragma warning restore CA1001
 {
     private PostgreSqlContainer? _postgresContainer;
     private string? _connectionString;

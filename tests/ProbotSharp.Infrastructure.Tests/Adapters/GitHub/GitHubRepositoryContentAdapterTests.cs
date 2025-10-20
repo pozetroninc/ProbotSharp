@@ -2,8 +2,11 @@
 // Licensed under the MIT License.
 
 using Microsoft.Extensions.Logging;
+
 using NSubstitute;
+
 using Octokit;
+
 using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Inbound;
 using ProbotSharp.Domain.ValueObjects;
@@ -106,5 +109,3 @@ public sealed class GitHubRepositoryContentAdapterSuccessTests
         exists.Should().BeFalse();
     }
 }
-
-

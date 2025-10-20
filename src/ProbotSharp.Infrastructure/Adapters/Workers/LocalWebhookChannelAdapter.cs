@@ -39,4 +39,3 @@ public sealed class LocalWebhookChannelAdapter : IWebhookChannelPort
         return Task.FromResult(Result<CreateWebhookChannelResponse>.Success(response));
     }
 }
-

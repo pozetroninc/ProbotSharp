@@ -10,6 +10,8 @@ namespace ProbotSharp.Infrastructure.Adapters.System;
 /// </summary>
 public sealed class SystemClock : IClockPort
 {
+    /// <summary>
+    /// Gets the current UTC date and time from the system clock.
+    /// </summary>
     public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
 }
-

@@ -44,10 +44,10 @@ public sealed record RepositoryConfigPath
         }
 
         // Normalize path - remove leading slashes
-        Path = path.TrimStart('/');
-        Owner = owner;
-        Repository = repository;
-        Ref = @ref;
+        this.Path = path.TrimStart('/');
+        this.Owner = owner;
+        this.Repository = repository;
+        this.Ref = @ref;
     }
 
     /// <summary>
@@ -85,17 +85,21 @@ public sealed record RepositoryConfigPath
     /// <summary>
     /// Gets the full path with repository coordinates.
     /// </summary>
-    public string GetFullPath() => $"{Owner}/{Repository}/{Path}";
+    public string GetFullPath() => $"{this.Owner}/{this.Repository}/{this.Path}";
 
     /// <summary>
     /// Gets the cache key for this configuration path.
     /// </summary>
     public string GetCacheKey(string? sha = null)
     {
-        var refPart = Ref ?? "default";
+        var refPart = this.Ref ?? "default";
         var shaPart = sha ?? "latest";
-        return $"config:{Owner}:{Repository}:{refPart}:{shaPart}:{Path}";
+        return $"config:{this.Owner}:{this.Repository}:{refPart}:{shaPart}:{this.Path}";
     }
 
-    public override string ToString() => GetFullPath();
+    /// <summary>
+    /// Returns the full path as a string.
+    /// </summary>
+    /// <returns>The full repository configuration path.</returns>
+    public override string ToString() => this.GetFullPath();
 }

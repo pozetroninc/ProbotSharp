@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using FluentAssertions;
+
 using ProbotSharp.Shared.DTOs;
 using ProbotSharp.Shared.Mapping;
+
 using Xunit;
 
 namespace ProbotSharp.Shared.Tests.Mapping;

@@ -12,10 +12,11 @@ using RichardSzalay.MockHttp;
 
 namespace ProbotSharp.Infrastructure.Tests.Adapters.GitHub;
 
-public class GitHubRestHttpAdapterTests
+public class GitHubRestHttpAdapterTests : IDisposable
 {
     private readonly MockHttpMessageHandler _mockHttp = new();
     private readonly ILogger<GitHubRestHttpAdapter> _logger = Substitute.For<ILogger<GitHubRestHttpAdapter>>();
+    private bool _disposed;
 
     [Fact]
     public async Task SendAsync_ShouldReturnSuccessResult_WhenRequestSucceeds()
@@ -51,9 +52,20 @@ public class GitHubRestHttpAdapterTests
         callCount.Should().Be(3);
     }
 
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _mockHttp?.Dispose();
+            _disposed = true;
+        }
+    }
+
     private IHttpClientFactory CreateFactory()
     {
-        var client = new HttpClient(_mockHttp) { BaseAddress = new Uri("https://api.github.com/") };
+#pragma warning disable CA2000 // HttpClient is intentionally not disposed - used by mock factory for multiple test calls
+        var client = new HttpClient(this._mockHttp) { BaseAddress = new Uri("https://api.github.com/") };
+#pragma warning restore CA2000
         var factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient("GitHubRest").Returns(client);
         return factory;

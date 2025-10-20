@@ -3,9 +3,12 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+
 using ProbotSharp.Application.Abstractions.Commands;
 using ProbotSharp.Domain.Commands;
 using ProbotSharp.Domain.Context;
+
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
 
 namespace ProbotSharp.Application.Services;
 
@@ -106,7 +109,7 @@ public class SlashCommandRouter
 
         foreach (var command in commands)
         {
-            await this.DispatchCommandAsync(command, context, serviceProvider, cancellationToken);
+            await this.DispatchCommandAsync(command, context, serviceProvider, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -156,7 +159,7 @@ public class SlashCommandRouter
                     handlerType.Name,
                     command.Name);
 
-                await handler.HandleAsync(context, command, cancellationToken);
+                await handler.HandleAsync(context, command, cancellationToken).ConfigureAwait(false);
 
                 this._logger.LogDebug(
                     "Handler {HandlerType} completed successfully",
@@ -183,3 +186,5 @@ public class SlashCommandRouter
         }
     }
 }
+
+#pragma warning restore CA1848

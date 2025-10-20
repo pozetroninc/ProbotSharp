@@ -41,4 +41,3 @@ public class WebhookSignatureValidatorTests
         return "sha256=" + Convert.ToHexString(hash).ToLowerInvariant();
     }
 }
-

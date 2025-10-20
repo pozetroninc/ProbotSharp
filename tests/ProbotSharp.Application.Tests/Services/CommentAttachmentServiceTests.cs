@@ -2,9 +2,13 @@
 // Licensed under the MIT License.
 
 using Microsoft.Extensions.Logging;
+
 using Newtonsoft.Json.Linq;
+
 using NSubstitute;
+
 using Octokit;
+
 using ProbotSharp.Application.Services;
 using ProbotSharp.Domain.Attachments;
 using ProbotSharp.Domain.Context;

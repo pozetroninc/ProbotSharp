@@ -7,6 +7,8 @@ using Microsoft.Extensions.Logging;
 using ProbotSharp.Application.Abstractions.Events;
 using ProbotSharp.Domain.Context;
 
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
+
 namespace ProbotSharp.Application.Services;
 
 /// <summary>
@@ -25,7 +27,7 @@ public sealed class EventRouter
     public EventRouter(ILogger<EventRouter> logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
-        _logger = logger;
+        this._logger = logger;
     }
 
     /// <summary>
@@ -48,9 +50,9 @@ public sealed class EventRouter
         }
 
         var registration = new HandlerRegistration(eventName, action, handlerType);
-        _handlers.Add(registration);
+        this._handlers.Add(registration);
 
-        _logger.LogDebug(
+        this._logger.LogDebug(
             "Registered handler {HandlerType} for event {EventName} action {Action}",
             handlerType.Name,
             eventName,
@@ -72,18 +74,18 @@ public sealed class EventRouter
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(serviceProvider);
 
-        var matchingHandlers = FindMatchingHandlers(context.EventName, context.EventAction);
+        var matchingHandlers = this.FindMatchingHandlers(context.EventName, context.EventAction);
 
         if (matchingHandlers.Count == 0)
         {
-            _logger.LogDebug(
+            this._logger.LogDebug(
                 "No handlers found for event {EventName} action {Action}",
                 context.EventName,
                 context.EventAction ?? "<none>");
             return;
         }
 
-        _logger.LogInformation(
+        this._logger.LogInformation(
             "Routing event {EventName}.{Action} to {HandlerCount} handler(s)",
             context.EventName,
             context.EventAction ?? "*",
@@ -91,7 +93,7 @@ public sealed class EventRouter
 
         foreach (var registration in matchingHandlers)
         {
-            await ExecuteHandlerAsync(registration, context, serviceProvider, cancellationToken)
+            await this.ExecuteHandlerAsync(registration, context, serviceProvider, cancellationToken)
                 .ConfigureAwait(false);
         }
     }
@@ -103,7 +105,7 @@ public sealed class EventRouter
     {
         var matches = new List<HandlerRegistration>();
 
-        foreach (var handler in _handlers)
+        foreach (var handler in this._handlers)
         {
             if (IsEventMatch(handler.EventName, eventName) &&
                 IsActionMatch(handler.Action, action))
@@ -170,7 +172,7 @@ public sealed class EventRouter
 
         try
         {
-            _logger.LogDebug(
+            this._logger.LogDebug(
                 "Executing handler {HandlerName} for {EventName}.{Action}",
                 handlerName,
                 context.EventName,
@@ -182,7 +184,7 @@ public sealed class EventRouter
 
             if (handler == null)
             {
-                _logger.LogError(
+                this._logger.LogError(
                     "Failed to resolve handler {HandlerName} from service provider",
                     handlerName);
                 return;
@@ -190,20 +192,20 @@ public sealed class EventRouter
 
             await handler.HandleAsync(context, cancellationToken).ConfigureAwait(false);
 
-            _logger.LogDebug(
+            this._logger.LogDebug(
                 "Handler {HandlerName} completed successfully",
                 handlerName);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            _logger.LogWarning(
+            this._logger.LogWarning(
                 "Handler {HandlerName} was cancelled",
                 handlerName);
             throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            this._logger.LogError(
                 ex,
                 "Handler {HandlerName} threw an exception while processing {EventName}.{Action}: {ErrorMessage}",
                 handlerName,
@@ -218,7 +220,7 @@ public sealed class EventRouter
     /// <summary>
     /// Gets the count of registered handlers.
     /// </summary>
-    public int HandlerCount => _handlers.Count;
+    public int HandlerCount => this._handlers.Count;
 
     /// <summary>
     /// Represents a registered handler with its event pattern.
@@ -239,3 +241,5 @@ public sealed class EventRouter
         public Type HandlerType { get; }
     }
 }
+
+#pragma warning restore CA1848

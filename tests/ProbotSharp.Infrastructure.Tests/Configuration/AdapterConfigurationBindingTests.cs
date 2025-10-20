@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using Microsoft.Extensions.Configuration;
+
 using ProbotSharp.Infrastructure.Configuration;
 
 namespace ProbotSharp.Infrastructure.Tests.Configuration;
@@ -44,6 +45,3 @@ public sealed class AdapterConfigurationBindingTests
         options.Metrics.GetVersion().Should().Be("1.0");
     }
 }
-
-
-

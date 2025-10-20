@@ -3,9 +3,13 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+
 using Newtonsoft.Json.Linq;
+
 using NSubstitute;
+
 using Octokit;
+
 using ProbotSharp.Application.EventHandlers;
 using ProbotSharp.Application.Services;
 using ProbotSharp.Domain.Context;
@@ -212,7 +216,7 @@ public class SlashCommandEventHandlerTests
     {
         // Arrange
         var context = CreateContextWithCommentBody("/label bug");
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
 
         // Act
         await this._handler.HandleAsync(context, cts.Token);

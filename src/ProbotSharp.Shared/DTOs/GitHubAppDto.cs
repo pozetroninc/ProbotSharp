@@ -30,5 +30,7 @@ public sealed class GitHubAppDto
     /// <summary>
     /// The installations associated with this GitHub App.
     /// </summary>
+#pragma warning disable CA2227 // Required for JSON deserialization
     public List<InstallationDto> Installations { get; set; } = new();
+#pragma warning restore CA2227
 }

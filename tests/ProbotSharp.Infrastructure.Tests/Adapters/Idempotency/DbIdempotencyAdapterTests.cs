@@ -2,13 +2,17 @@
 // Licensed under the MIT License.
 
 using FluentAssertions;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+
 using NSubstitute;
+
 using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Infrastructure.Adapters.Idempotency;
 using ProbotSharp.Infrastructure.Adapters.Persistence;
 using ProbotSharp.Infrastructure.Adapters.Persistence.Models;
+
 using Xunit;
 
 namespace ProbotSharp.Infrastructure.Tests.Adapters.Idempotency;

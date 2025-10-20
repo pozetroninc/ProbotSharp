@@ -20,7 +20,7 @@ public sealed class GitHubGraphQlClientDomainAdapter : IGitHubGraphQlClient
     /// <param name="port">The GraphQL client port from the application layer.</param>
     public GitHubGraphQlClientDomainAdapter(IGitHubGraphQlClientPort port)
     {
-        _port = port ?? throw new ArgumentNullException(nameof(port));
+        this._port = port ?? throw new ArgumentNullException(nameof(port));
     }
 
     /// <inheritdoc/>
@@ -29,7 +29,7 @@ public sealed class GitHubGraphQlClientDomainAdapter : IGitHubGraphQlClient
         object? variables = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await _port.ExecuteAsync<TResponse>(query, variables, cancellationToken);
+        var result = await this._port.ExecuteAsync<TResponse>(query, variables, cancellationToken).ConfigureAwait(false);
 
         if (result.IsSuccess && result.Value != null)
         {

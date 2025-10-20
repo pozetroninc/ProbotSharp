@@ -15,8 +15,8 @@ public interface IWebhookChannelPort
     /// <summary>
     /// Creates a new webhook proxy channel.
     /// </summary>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Webhook channel response with proxy URL if successful, error otherwise</returns>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Webhook channel response with proxy URL if successful, error otherwise.</returns>
     Task<Result<CreateWebhookChannelResponse>> CreateChannelAsync(
         CancellationToken cancellationToken = default);
 }

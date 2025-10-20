@@ -10,11 +10,12 @@ using ProbotSharp.Infrastructure.Adapters.Persistence;
 
 namespace ProbotSharp.Infrastructure.Tests.Adapters.Persistence;
 
-public sealed class EfWebhookStorageAdapterTests
+public sealed class EfWebhookStorageAdapterTests : IDisposable
 {
     private readonly ProbotSharpDbContext _dbContext;
     private readonly EfWebhookStorageAdapter _sut;
     private readonly ILogger<EfWebhookStorageAdapter> _logger = Substitute.For<ILogger<EfWebhookStorageAdapter>>();
+    private bool _disposed;
 
     public EfWebhookStorageAdapterTests()
     {
@@ -24,6 +25,15 @@ public sealed class EfWebhookStorageAdapterTests
 
         _dbContext = new ProbotSharpDbContext(options);
         _sut = new EfWebhookStorageAdapter(_dbContext, _logger);
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _dbContext?.Dispose();
+            _disposed = true;
+        }
     }
 
     [Fact]
@@ -79,4 +89,3 @@ public sealed class EfWebhookStorageAdapterTests
             WebhookPayload.Create("{\"ok\":true}"),
             InstallationId.Create(1));
 }
-

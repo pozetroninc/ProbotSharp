@@ -21,4 +21,3 @@ internal sealed class ProbotSharpDbContextFactory : IDesignTimeDbContextFactory<
         return new ProbotSharpDbContext(optionsBuilder.Options);
     }
 }
-

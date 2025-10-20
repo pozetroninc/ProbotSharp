@@ -4,12 +4,12 @@
 using System.ComponentModel;
 using System.Diagnostics;
 
-using Spectre.Console;
-using Spectre.Console.Cli;
-
 using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Inbound;
 using ProbotSharp.Domain.ValueObjects;
+
+using Spectre.Console;
+using Spectre.Console.Cli;
 
 namespace ProbotSharp.Adapters.Cli.Commands;
 
@@ -21,11 +21,23 @@ public sealed class SetupCommand : AsyncCommand<SetupCommand.Settings>
 {
     private readonly ISetupWizardPort _setupWizardPort;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SetupCommand"/> class.
+    /// </summary>
+    /// <param name="setupWizardPort">The setup wizard port for GitHub App creation.</param>
     public SetupCommand(ISetupWizardPort setupWizardPort)
     {
-        _setupWizardPort = setupWizardPort;
+        this._setupWizardPort = setupWizardPort;
     }
 
+    // CA1849: AnsiConsole.Ask/Confirm are intentionally synchronous - CLI requires blocking user input
+#pragma warning disable CA1849
+    /// <summary>
+    /// Executes the interactive setup wizard to create a GitHub App.
+    /// </summary>
+    /// <param name="context">The command context.</param>
+    /// <param name="settings">The command settings including port and prompt options.</param>
+    /// <returns>Exit code: 0 for success, 1 for failure.</returns>
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         try
@@ -114,8 +126,8 @@ public sealed class SetupCommand : AsyncCommand<SetupCommand.Settings>
                     .StartAsync("Creating webhook proxy channel...", async ctx =>
                     {
                         var channelCommand = new CreateWebhookChannelCommand();
-                        return await _setupWizardPort.CreateWebhookChannelAsync(channelCommand);
-                    });
+                        return await this._setupWizardPort.CreateWebhookChannelAsync(channelCommand).ConfigureAwait(false);
+                    }).ConfigureAwait(false);
 
                 if (channelResult.IsSuccess && channelResult.Value is { } channel)
                 {
@@ -170,8 +182,8 @@ public sealed class SetupCommand : AsyncCommand<SetupCommand.Settings>
                         WebhookProxyUrl: webhookProxyUrl,
                         IsPublic: false);
 
-                    return await _setupWizardPort.GetManifestAsync(manifestCommand);
-                });
+                    return await this._setupWizardPort.GetManifestAsync(manifestCommand).ConfigureAwait(false);
+                }).ConfigureAwait(false);
 
             if (!manifestResponse.IsSuccess || manifestResponse.Value is null)
             {
@@ -262,7 +274,7 @@ public sealed class SetupCommand : AsyncCommand<SetupCommand.Settings>
                 string privateKey;
                 try
                 {
-                    privateKey = await File.ReadAllTextAsync(privateKeyPath);
+                    privateKey = await File.ReadAllTextAsync(privateKeyPath).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -280,8 +292,8 @@ public sealed class SetupCommand : AsyncCommand<SetupCommand.Settings>
                             PrivateKey: PrivateKeyPem.Create(privateKey),
                             WebhookSecret: string.IsNullOrWhiteSpace(webhookSecret) ? null : webhookSecret);
 
-                        return await _setupWizardPort.ImportAppCredentialsAsync(importCommand);
-                    });
+                        return await this._setupWizardPort.ImportAppCredentialsAsync(importCommand).ConfigureAwait(false);
+                    }).ConfigureAwait(false);
 
                 if (!importResult.IsSuccess)
                 {
@@ -323,22 +335,36 @@ public sealed class SetupCommand : AsyncCommand<SetupCommand.Settings>
             return 1;
         }
     }
+#pragma warning restore CA1849
 
+    /// <summary>
+    /// Settings for the setup command.
+    /// </summary>
     public sealed class Settings : CommandSettings
     {
+        /// <summary>
+        /// Gets or sets the server port for the setup wizard.
+        /// </summary>
         [Description("Server port for setup wizard")]
         [CommandOption("-p|--port")]
         [DefaultValue(3000)]
         public int Port { get; set; } = 3000;
 
+        /// <summary>
+        /// Gets or sets a value indicating whether to skip interactive prompts and use defaults.
+        /// </summary>
         [Description("Skip interactive prompts and use defaults")]
         [CommandOption("--skip-prompt")]
         [DefaultValue(false)]
         public bool SkipPrompt { get; set; }
 
+        /// <summary>
+        /// Validates the command settings.
+        /// </summary>
+        /// <returns>Validation result indicating success or error.</returns>
         public override ValidationResult Validate()
         {
-            if (Port < 1 || Port > 65535)
+            if (this.Port < 1 || this.Port > 65535)
             {
                 return ValidationResult.Error("Port must be between 1 and 65535");
             }

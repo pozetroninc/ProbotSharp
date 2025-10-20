@@ -28,10 +28,11 @@ namespace ProbotSharp.Infrastructure.Tests.Adapters.GitHub;
 /// Uses MockHttp to simulate GitHub API responses based on real GitHub API contracts.
 /// Test fixtures are stored in Fixtures/github-api-responses/ directory.
 /// </remarks>
-public class GitHubRestHttpAdapterContractTests
+public class GitHubRestHttpAdapterContractTests : IDisposable
 {
     private readonly MockHttpMessageHandler _mockHttp = new();
     private readonly ILogger<GitHubRestHttpAdapter> _logger = Substitute.For<ILogger<GitHubRestHttpAdapter>>();
+    private bool _disposed;
 
     /// <summary>
     /// Verifies that the adapter successfully processes a valid GitHub App info response (GET /app).
@@ -218,7 +219,7 @@ public class GitHubRestHttpAdapterContractTests
         var adapter = new GitHubRestHttpAdapter(clientFactory, _logger);
 
         // Act
-        var requestBody = new StringContent("{\"body\":\"Test issue\"}", Encoding.UTF8, "application/json");
+        using var requestBody = new StringContent("{\"body\":\"Test issue\"}", Encoding.UTF8, "application/json");
         var result = await adapter.SendAsync(client =>
             client.PostAsync("https://api.github.com/repos/octocat/test-repo/issues", requestBody));
 
@@ -409,7 +410,7 @@ public class GitHubRestHttpAdapterContractTests
         var adapter = new GitHubRestHttpAdapter(clientFactory, _logger);
 
         // Act
-        var requestBody = new StringContent("{\"title\":\"Test Issue\",\"body\":\"Test body\"}", Encoding.UTF8, "application/json");
+        using var requestBody = new StringContent("{\"title\":\"Test Issue\",\"body\":\"Test body\"}", Encoding.UTF8, "application/json");
         var result = await adapter.SendAsync(client =>
             client.PostAsync("https://api.github.com/repos/octocat/test-repo/issues", requestBody));
 
@@ -437,7 +438,7 @@ public class GitHubRestHttpAdapterContractTests
         var adapter = new GitHubRestHttpAdapter(clientFactory, _logger);
 
         // Act
-        var requestBody = new StringContent("{\"state\":\"closed\"}", Encoding.UTF8, "application/json");
+        using var requestBody = new StringContent("{\"state\":\"closed\"}", Encoding.UTF8, "application/json");
         var result = await adapter.SendAsync(client =>
             client.PatchAsync("https://api.github.com/repos/octocat/test-repo/issues/123", requestBody));
 
@@ -555,8 +556,8 @@ public class GitHubRestHttpAdapterContractTests
             });
 
         var adapter = new GitHubRestHttpAdapter(clientFactory, _logger);
-        var cts = new CancellationTokenSource();
-        cts.Cancel();
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
 
         // Act
         var result = await adapter.SendAsync(
@@ -569,13 +570,24 @@ public class GitHubRestHttpAdapterContractTests
         result.Error!.Value.Code.Should().Be("github_rest_error");
     }
 
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _mockHttp?.Dispose();
+            _disposed = true;
+        }
+    }
+
     /// <summary>
     /// Creates a mock HTTP client factory configured with the mock HTTP handler.
     /// </summary>
     /// <returns>A configured HTTP client factory.</returns>
     private IHttpClientFactory CreateFactory()
     {
-        var client = new HttpClient(_mockHttp) { BaseAddress = new Uri("https://api.github.com/") };
+#pragma warning disable CA2000 // HttpClient is intentionally not disposed - used by mock factory for multiple test calls
+        var client = new HttpClient(this._mockHttp) { BaseAddress = new Uri("https://api.github.com/") };
+#pragma warning restore CA2000
         var factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient("GitHubRest").Returns(client);
         return factory;

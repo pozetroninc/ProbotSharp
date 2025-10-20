@@ -2,10 +2,13 @@
 // Licensed under the MIT License.
 
 using Microsoft.Extensions.Logging;
+
 using ProbotSharp.Application.Abstractions.Events;
 using ProbotSharp.Application.Services;
 using ProbotSharp.Domain.Commands;
 using ProbotSharp.Domain.Context;
+
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
 
 namespace ProbotSharp.Application.EventHandlers;
 
@@ -79,6 +82,8 @@ public sealed class SlashCommandEventHandler : IEventHandler
             context.EventName);
 
         // Route commands to registered handlers
-        await this._router.RouteAsync(context, commentBody, this._serviceProvider, cancellationToken);
+        await this._router.RouteAsync(context, commentBody, this._serviceProvider, cancellationToken).ConfigureAwait(false);
     }
 }
+
+#pragma warning restore CA1848

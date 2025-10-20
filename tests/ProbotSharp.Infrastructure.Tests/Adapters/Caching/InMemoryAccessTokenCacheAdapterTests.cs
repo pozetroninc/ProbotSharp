@@ -8,14 +8,24 @@ using ProbotSharp.Infrastructure.Adapters.Caching;
 
 namespace ProbotSharp.Infrastructure.Tests.Adapters.Caching;
 
-public sealed class InMemoryAccessTokenCacheAdapterTests
+public sealed class InMemoryAccessTokenCacheAdapterTests : IDisposable
 {
     private readonly IMemoryCache _memoryCache = new MemoryCache(new MemoryCacheOptions());
     private readonly InMemoryAccessTokenCacheAdapter _sut;
+    private bool _disposed;
 
     public InMemoryAccessTokenCacheAdapterTests()
     {
         _sut = new InMemoryAccessTokenCacheAdapter(_memoryCache);
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            (_memoryCache as IDisposable)?.Dispose();
+            _disposed = true;
+        }
     }
 
     [Fact]
@@ -39,4 +49,3 @@ public sealed class InMemoryAccessTokenCacheAdapterTests
         result.Should().Be(token);
     }
 }
-

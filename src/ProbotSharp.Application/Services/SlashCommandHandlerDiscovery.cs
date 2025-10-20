@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Reflection;
+
 using ProbotSharp.Application.Abstractions.Commands;
 
 namespace ProbotSharp.Application.Services;

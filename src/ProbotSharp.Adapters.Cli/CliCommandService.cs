@@ -11,6 +11,8 @@ using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Shared.Abstractions;
 
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
+
 namespace ProbotSharp.Adapters.Cli;
 
 /// <summary>
@@ -22,16 +24,28 @@ public sealed class CliCommandService : ICliCommandPort
     private readonly IWebhookProcessingPort _webhookProcessingPort;
     private readonly ILogger<CliCommandService> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CliCommandService"/> class.
+    /// </summary>
+    /// <param name="lifecyclePort">The application lifecycle port for server operations.</param>
+    /// <param name="webhookProcessingPort">The webhook processing port for handling webhook events.</param>
+    /// <param name="logger">The logger for recording CLI operations.</param>
     public CliCommandService(
         IAppLifecyclePort lifecyclePort,
         IWebhookProcessingPort webhookProcessingPort,
         ILogger<CliCommandService> logger)
     {
-        _lifecyclePort = lifecyclePort;
-        _webhookProcessingPort = webhookProcessingPort;
-        _logger = logger;
+        this._lifecyclePort = lifecyclePort;
+        this._webhookProcessingPort = webhookProcessingPort;
+        this._logger = logger;
     }
 
+    /// <summary>
+    /// Executes the run command to start the ProbotSharp development server.
+    /// </summary>
+    /// <param name="command">The run command with server configuration.</param>
+    /// <param name="cancellationToken">Cancellation token for async operation.</param>
+    /// <returns>Result indicating success or failure with error details.</returns>
     public async Task<Result> ExecuteRunAsync(RunCliCommand command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -52,23 +66,23 @@ public sealed class CliCommandService : ICliCommandPort
             command.BaseUrl,
             command.AppPaths);
 
-        _logger.LogInformation(
+        this._logger.LogInformation(
             "Starting server on {Host}:{Port} for {AppCount} app(s)",
             command.Host,
             command.Port,
             command.AppPaths.Length);
 
-        var lifecycleResult = await _lifecyclePort.StartServerAsync(startCommand, cancellationToken);
+        var lifecycleResult = await this._lifecyclePort.StartServerAsync(startCommand, cancellationToken).ConfigureAwait(false);
         if (!lifecycleResult.IsSuccess && lifecycleResult.Error is not null)
         {
-            _logger.LogError(
+            this._logger.LogError(
                 "Failed to start server: {Error}",
                 lifecycleResult.Error.Value.ToString());
         }
 
         if (lifecycleResult.IsSuccess && lifecycleResult.Value is { } info)
         {
-            _logger.LogInformation(
+            this._logger.LogInformation(
                 "Server ready at http://{Host}:{Port}{Path}",
                 info.Host,
                 info.Port,
@@ -82,6 +96,12 @@ public sealed class CliCommandService : ICliCommandPort
 
     }
 
+    /// <summary>
+    /// Executes the receive command to simulate processing a webhook event from a file.
+    /// </summary>
+    /// <param name="command">The receive command with event name and payload path.</param>
+    /// <param name="cancellationToken">Cancellation token for async operation.</param>
+    /// <returns>Result indicating success or failure with error details.</returns>
     public async Task<Result> ExecuteReceiveAsync(ReceiveEventCommand command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -104,14 +124,14 @@ public sealed class CliCommandService : ICliCommandPort
         try
         {
             // Read and parse the webhook payload
-            var payloadJson = await File.ReadAllTextAsync(command.PayloadPath, cancellationToken);
+            var payloadJson = await File.ReadAllTextAsync(command.PayloadPath, cancellationToken).ConfigureAwait(false);
 
             if (string.IsNullOrWhiteSpace(payloadJson))
             {
                 return Result.Failure("cli_receive_empty_payload", "Payload file is empty.");
             }
 
-            _logger.LogInformation(
+            this._logger.LogInformation(
                 "Processing webhook event {EventName} from {PayloadPath} for app {AppPath}",
                 command.EventName.Value,
                 command.PayloadPath,
@@ -145,18 +165,18 @@ public sealed class CliCommandService : ICliCommandPort
                 payloadJson);
 
             // Delegate to the webhook processing use case
-            var result = await _webhookProcessingPort.ProcessAsync(processCommand, cancellationToken);
+            var result = await this._webhookProcessingPort.ProcessAsync(processCommand, cancellationToken).ConfigureAwait(false);
 
             if (result.IsSuccess)
             {
-                _logger.LogInformation(
+                this._logger.LogInformation(
                     "Successfully processed webhook event {EventName} with delivery ID {DeliveryId}",
                     command.EventName.Value,
                     deliveryId.Value);
             }
             else
             {
-                _logger.LogError(
+                this._logger.LogError(
                     "Failed to process webhook event {EventName}: {Error}",
                     command.EventName.Value,
                     result.Error?.Message ?? "Unknown error");
@@ -166,19 +186,31 @@ public sealed class CliCommandService : ICliCommandPort
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to receive webhook event");
+            this._logger.LogError(ex, "Failed to receive webhook event");
             return Result.Failure(
                 "cli_receive_failed",
                 $"Failed to process webhook event: {ex.Message}");
         }
     }
 
+    /// <summary>
+    /// Gets the ProbotSharp version information.
+    /// </summary>
+    /// <param name="query">The version query.</param>
+    /// <param name="cancellationToken">Cancellation token for async operation.</param>
+    /// <returns>Result containing the version string.</returns>
     public Task<Result<string>> GetVersionAsync(GetVersionQuery query, CancellationToken cancellationToken = default)
     {
         var version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "0.0.0";
         return Task.FromResult(Result<string>.Success(version));
     }
 
+    /// <summary>
+    /// Gets help information for a specific command or general help.
+    /// </summary>
+    /// <param name="query">The help query with optional command name.</param>
+    /// <param name="cancellationToken">Cancellation token for async operation.</param>
+    /// <returns>Result containing the help text.</returns>
     public Task<Result<string>> GetHelpAsync(GetHelpQuery query, CancellationToken cancellationToken = default)
     {
         var help = query.CommandName switch
@@ -251,3 +283,5 @@ public sealed class CliCommandService : ICliCommandPort
         "  -p, --port <port>    Local server port for setup (default: 3000)\n" +
         "  --skip-prompt        Skip interactive prompts and use defaults";
 }
+
+#pragma warning restore CA1848

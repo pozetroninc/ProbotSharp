@@ -181,25 +181,38 @@ public sealed class EnvironmentConfigurationAdapter : IEnvironmentConfigurationP
             .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        await using var stream = new FileStream(this._envFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
-        await using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-
-        await writer.WriteLineAsync("# Managed by ProbotSharp.Infrastructure - credentials for local development").ConfigureAwait(false);
-        foreach (var (key, value) in managed)
+        var stream = new FileStream(this._envFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
+        try
         {
-            await writer.WriteLineAsync(FormattableString.Invariant($"{key}={value}")).ConfigureAwait(false);
-        }
-
-        if (unmanaged.Length > 0)
-        {
-            await writer.WriteLineAsync().ConfigureAwait(false);
-            foreach (var (key, value) in unmanaged)
+            var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            try
             {
-                await writer.WriteLineAsync(FormattableString.Invariant($"{key}={value}")).ConfigureAwait(false);
+                await writer.WriteLineAsync("# Managed by ProbotSharp.Infrastructure - credentials for local development").ConfigureAwait(false);
+                foreach (var (key, value) in managed)
+                {
+                    await writer.WriteLineAsync(FormattableString.Invariant($"{key}={value}")).ConfigureAwait(false);
+                }
+
+                if (unmanaged.Length > 0)
+                {
+                    await writer.WriteLineAsync().ConfigureAwait(false);
+                    foreach (var (key, value) in unmanaged)
+                    {
+                        await writer.WriteLineAsync(FormattableString.Invariant($"{key}={value}")).ConfigureAwait(false);
+                    }
+                }
+
+                await writer.FlushAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                await writer.DisposeAsync().ConfigureAwait(false);
             }
         }
-
-        await writer.FlushAsync().ConfigureAwait(false);
+        finally
+        {
+            await stream.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     private void SetProcessEnvironment(Dictionary<string, string> entries)
@@ -223,19 +236,26 @@ public sealed class EnvironmentConfigurationAdapter : IEnvironmentConfigurationP
         string path,
         [global::System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using var reader = new StreamReader(stream);
-
-        while (!reader.EndOfStream)
+        var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var line = await reader.ReadLineAsync().ConfigureAwait(false);
-            if (line is null)
-            {
-                yield break;
-            }
+            using var reader = new StreamReader(stream);
 
-            yield return line;
+            while (!reader.EndOfStream)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var line = await reader.ReadLineAsync().ConfigureAwait(false);
+                if (line is null)
+                {
+                    yield break;
+                }
+
+                yield return line;
+            }
+        }
+        finally
+        {
+            await stream.DisposeAsync().ConfigureAwait(false);
         }
     }
 }

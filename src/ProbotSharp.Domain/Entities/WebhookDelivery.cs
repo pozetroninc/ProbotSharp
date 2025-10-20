@@ -7,6 +7,9 @@ using ProbotSharp.Domain.ValueObjects;
 
 namespace ProbotSharp.Domain.Entities;
 
+/// <summary>
+/// Represents a webhook delivery from GitHub.
+/// </summary>
 public sealed class WebhookDelivery : AggregateRoot<DeliveryId>
 {
     private WebhookDelivery(
@@ -23,14 +26,35 @@ public sealed class WebhookDelivery : AggregateRoot<DeliveryId>
         this.InstallationId = installationId;
     }
 
+    /// <summary>
+    /// Gets the webhook event name.
+    /// </summary>
     public WebhookEventName EventName { get; }
 
+    /// <summary>
+    /// Gets the delivery timestamp.
+    /// </summary>
     public DateTimeOffset DeliveredAt { get; }
 
+    /// <summary>
+    /// Gets the webhook payload.
+    /// </summary>
     public WebhookPayload Payload { get; }
 
+    /// <summary>
+    /// Gets the installation ID if applicable.
+    /// </summary>
     public InstallationId? InstallationId { get; }
 
+    /// <summary>
+    /// Creates a new webhook delivery instance.
+    /// </summary>
+    /// <param name="id">The delivery ID.</param>
+    /// <param name="eventName">The event name.</param>
+    /// <param name="deliveredAt">The delivery timestamp.</param>
+    /// <param name="payload">The webhook payload.</param>
+    /// <param name="installationId">The installation ID if applicable.</param>
+    /// <returns>A new webhook delivery instance.</returns>
     public static WebhookDelivery Create(
         DeliveryId id,
         WebhookEventName eventName,
@@ -48,4 +72,3 @@ public sealed class WebhookDelivery : AggregateRoot<DeliveryId>
         return delivery;
     }
 }
-

@@ -2,11 +2,14 @@
 // Licensed under the MIT License.
 
 using System.Reflection;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 using ProbotSharp.Application.Abstractions;
+
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
 
 namespace ProbotSharp.Application.Services;
 
@@ -26,7 +29,7 @@ public sealed class ProbotAppLoader
     public ProbotAppLoader(ILogger<ProbotAppLoader> logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
-        _logger = logger;
+        this._logger = logger;
     }
 
     /// <summary>
@@ -40,7 +43,7 @@ public sealed class ProbotAppLoader
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(assemblyPath);
 
-        _logger.LogDebug("Discovering Probot apps in assembly: {AssemblyPath}", assemblyPath);
+        this._logger.LogDebug("Discovering Probot apps in assembly: {AssemblyPath}", assemblyPath);
 
         Assembly assembly;
         try
@@ -50,12 +53,12 @@ public sealed class ProbotAppLoader
         }
         catch (FileNotFoundException ex)
         {
-            _logger.LogError(ex, "Assembly not found: {AssemblyPath}", assemblyPath);
+            this._logger.LogError(ex, "Assembly not found: {AssemblyPath}", assemblyPath);
             throw;
         }
         catch (BadImageFormatException ex)
         {
-            _logger.LogError(ex, "Invalid assembly format: {AssemblyPath}", assemblyPath);
+            this._logger.LogError(ex, "Invalid assembly format: {AssemblyPath}", assemblyPath);
             throw;
         }
 
@@ -65,14 +68,14 @@ public sealed class ProbotAppLoader
                        t is { IsClass: true, IsAbstract: false })
             .ToList();
 
-        _logger.LogInformation(
+        this._logger.LogInformation(
             "Discovered {AppCount} Probot app(s) in assembly {AssemblyName}",
             appTypes.Count,
             assembly.GetName().Name);
 
         foreach (var appType in appTypes)
         {
-            _logger.LogDebug("Found app type: {AppType}", appType.FullName);
+            this._logger.LogDebug("Found app type: {AppType}", appType.FullName);
         }
 
         return appTypes;
@@ -90,7 +93,7 @@ public sealed class ProbotAppLoader
         ArgumentNullException.ThrowIfNull(appType);
         ArgumentNullException.ThrowIfNull(serviceProvider);
 
-        _logger.LogDebug("Loading app type: {AppType}", appType.FullName);
+        this._logger.LogDebug("Loading app type: {AppType}", appType.FullName);
 
         try
         {
@@ -112,7 +115,7 @@ public sealed class ProbotAppLoader
                     $"Failed to create instance of app type {appType.FullName}");
             }
 
-            _logger.LogInformation(
+            this._logger.LogInformation(
                 "Successfully loaded app: {AppName} v{Version}",
                 app.Name,
                 app.Version);
@@ -121,7 +124,7 @@ public sealed class ProbotAppLoader
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            this._logger.LogError(
                 ex,
                 "Failed to instantiate app type {AppType}: {ErrorMessage}",
                 appType.FullName,
@@ -148,7 +151,7 @@ public sealed class ProbotAppLoader
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        _logger.LogDebug(
+        this._logger.LogDebug(
             "Configuring services for app: {AppName} v{Version}",
             app.Name,
             app.Version);
@@ -157,13 +160,13 @@ public sealed class ProbotAppLoader
         {
             await app.ConfigureAsync(services, configuration).ConfigureAwait(false);
 
-            _logger.LogInformation(
+            this._logger.LogInformation(
                 "Successfully configured services for app: {AppName}",
                 app.Name);
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            this._logger.LogError(
                 ex,
                 "Failed to configure services for app {AppName}: {ErrorMessage}",
                 app.Name,
@@ -188,7 +191,7 @@ public sealed class ProbotAppLoader
         ArgumentNullException.ThrowIfNull(router);
         ArgumentNullException.ThrowIfNull(serviceProvider);
 
-        _logger.LogDebug(
+        this._logger.LogDebug(
             "Initializing app: {AppName} v{Version}",
             app.Name,
             app.Version);
@@ -197,13 +200,13 @@ public sealed class ProbotAppLoader
         {
             await app.InitializeAsync(router, serviceProvider).ConfigureAwait(false);
 
-            _logger.LogInformation(
+            this._logger.LogInformation(
                 "Successfully initialized app: {AppName}",
                 app.Name);
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            this._logger.LogError(
                 ex,
                 "Failed to initialize app {AppName}: {ErrorMessage}",
                 app.Name,
@@ -212,3 +215,5 @@ public sealed class ProbotAppLoader
         }
     }
 }
+
+#pragma warning restore CA1848

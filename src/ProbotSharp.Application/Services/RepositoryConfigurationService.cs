@@ -1,12 +1,17 @@
 using System.Text.Json;
+
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Domain.Models;
 using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Shared.Abstractions;
+
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
+
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
 
 namespace ProbotSharp.Application.Services;
 
@@ -25,19 +30,30 @@ public sealed class RepositoryConfigurationService
         .IgnoreUnmatchedProperties()
         .Build();
 
+    private static readonly JsonSerializerOptions s_jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RepositoryConfigurationService"/> class.
+    /// </summary>
+    /// <param name="contentPort">The repository content port.</param>
+    /// <param name="cache">The memory cache.</param>
+    /// <param name="logger">The logger.</param>
     public RepositoryConfigurationService(
         IRepositoryContentPort contentPort,
         IMemoryCache cache,
         ILogger<RepositoryConfigurationService> logger)
     {
-        _contentPort = contentPort;
-        _cache = cache;
-        _logger = logger;
+        this._contentPort = contentPort;
+        this._cache = cache;
+        this._logger = logger;
     }
 
     /// <summary>
     /// Loads configuration with cascading and extends support.
-    /// Resolution order: (1) repo root → (2) repo .github/ → (3) org .github repo → (4) _extends chain
+    /// Resolution order: (1) repo root → (2) repo .github/ → (3) org .github repo → (4) _extends chain.
     /// </summary>
     public async Task<Result<T>> GetConfigAsync<T>(
         string owner,
@@ -51,17 +67,17 @@ public sealed class RepositoryConfigurationService
         options ??= RepositoryConfigurationOptions.Default;
         fileName ??= options.DefaultFileName;
 
-        _logger.LogDebug(
+        this._logger.LogDebug(
             "Loading configuration {FileName} for {Owner}/{Repository}",
             fileName, owner, repository);
 
         // Try cascade: root → .github → org
-        var mergedConfig = await LoadWithCascadeAsync(
-            owner, repository, installationId, fileName, options, cancellationToken);
+        var mergedConfig = await this.LoadWithCascadeAsync(
+            owner, repository, installationId, fileName, options, cancellationToken).ConfigureAwait(false);
 
         if (mergedConfig == null)
         {
-            _logger.LogDebug(
+            this._logger.LogDebug(
                 "No configuration found for {Owner}/{Repository}/{FileName}, using default",
                 owner, repository, fileName);
 
@@ -73,8 +89,8 @@ public sealed class RepositoryConfigurationService
         // Handle _extends if enabled
         if (options.EnableExtendsKey && mergedConfig.ContainsKey("_extends"))
         {
-            mergedConfig = await ResolveExtendsAsync(
-                mergedConfig, owner, repository, installationId, options, cancellationToken, depth: 0);
+            mergedConfig = await this.ResolveExtendsAsync(
+                mergedConfig, owner, repository, installationId, options, cancellationToken, depth: 0).ConfigureAwait(false);
         }
 
         // Merge with defaults if provided
@@ -88,10 +104,7 @@ public sealed class RepositoryConfigurationService
         try
         {
             var json = JsonSerializer.Serialize(mergedConfig);
-            var result = JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            var result = JsonSerializer.Deserialize<T>(json, s_jsonOptions);
 
             return result != null
                 ? Result<T>.Success(result)
@@ -99,7 +112,7 @@ public sealed class RepositoryConfigurationService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to deserialize configuration to type {Type}", typeof(T).Name);
+            this._logger.LogError(ex, "Failed to deserialize configuration to type {Type}", typeof(T).Name);
             return Result<T>.Failure("Validation", $"Configuration deserialization failed: {ex.Message}");
         }
     }
@@ -119,8 +132,8 @@ public sealed class RepositoryConfigurationService
         options ??= RepositoryConfigurationOptions.Default;
         fileName ??= options.DefaultFileName;
 
-        var mergedConfig = await LoadWithCascadeAsync(
-            owner, repository, installationId, fileName, options, cancellationToken);
+        var mergedConfig = await this.LoadWithCascadeAsync(
+            owner, repository, installationId, fileName, options, cancellationToken).ConfigureAwait(false);
 
         if (mergedConfig == null)
         {
@@ -131,8 +144,8 @@ public sealed class RepositoryConfigurationService
 
         if (options.EnableExtendsKey && mergedConfig.ContainsKey("_extends"))
         {
-            mergedConfig = await ResolveExtendsAsync(
-                mergedConfig, owner, repository, installationId, options, cancellationToken, depth: 0);
+            mergedConfig = await this.ResolveExtendsAsync(
+                mergedConfig, owner, repository, installationId, options, cancellationToken, depth: 0).ConfigureAwait(false);
         }
 
         if (defaultConfig != null)
@@ -155,10 +168,10 @@ public sealed class RepositoryConfigurationService
 
         // 1. Try repository root
         var rootPath = RepositoryConfigPath.ForRoot(fileName, owner, repository);
-        var rootConfig = await LoadSingleConfigAsync(rootPath, installationId, cancellationToken);
+        var rootConfig = await this.LoadSingleConfigAsync(rootPath, installationId, cancellationToken).ConfigureAwait(false);
         if (rootConfig != null)
         {
-            _logger.LogDebug("Loaded config from repository root: {Path}", rootPath);
+            this._logger.LogDebug("Loaded config from repository root: {Path}", rootPath);
             merged = rootConfig;
         }
 
@@ -166,10 +179,10 @@ public sealed class RepositoryConfigurationService
         if (options.EnableGitHubDirectoryCascade)
         {
             var githubPath = RepositoryConfigPath.ForGitHubDirectory(fileName, owner, repository);
-            var githubConfig = await LoadSingleConfigAsync(githubPath, installationId, cancellationToken);
+            var githubConfig = await this.LoadSingleConfigAsync(githubPath, installationId, cancellationToken).ConfigureAwait(false);
             if (githubConfig != null)
             {
-                _logger.LogDebug("Loaded config from .github directory: {Path}", githubPath);
+                this._logger.LogDebug("Loaded config from .github directory: {Path}", githubPath);
                 merged = merged != null
                     ? DeepMerge(githubConfig, merged, options.ArrayMergeStrategy)
                     : githubConfig;
@@ -180,10 +193,10 @@ public sealed class RepositoryConfigurationService
         if (options.EnableOrganizationConfig)
         {
             var orgPath = RepositoryConfigPath.ForOrganization(fileName, owner);
-            var orgConfig = await LoadSingleConfigAsync(orgPath, installationId, cancellationToken);
+            var orgConfig = await this.LoadSingleConfigAsync(orgPath, installationId, cancellationToken).ConfigureAwait(false);
             if (orgConfig != null)
             {
-                _logger.LogDebug("Loaded config from organization .github: {Path}", orgPath);
+                this._logger.LogDebug("Loaded config from organization .github: {Path}", orgPath);
                 merged = merged != null
                     ? DeepMerge(orgConfig, merged, options.ArrayMergeStrategy)
                     : orgConfig;
@@ -200,23 +213,23 @@ public sealed class RepositoryConfigurationService
     {
         // Try cache first
         var cacheKey = path.GetCacheKey();
-        if (_cache.TryGetValue<string>(cacheKey, out var cached) && cached != null)
+        if (this._cache.TryGetValue<string>(cacheKey, out var cached) && cached != null)
         {
-            _logger.LogTrace("Configuration cache hit: {CacheKey}", cacheKey);
+            this._logger.LogTrace("Configuration cache hit: {CacheKey}", cacheKey);
             return ParseYaml(cached);
         }
 
         // Fetch from GitHub
-        var result = await _contentPort.GetFileContentAsync(path, installationId, cancellationToken);
+        var result = await this._contentPort.GetFileContentAsync(path, installationId, cancellationToken).ConfigureAwait(false);
         if (!result.IsSuccess)
         {
             if (result.Error?.Code == "NotFound")
             {
-                _logger.LogTrace("Configuration file not found: {Path}", path);
+                this._logger.LogTrace("Configuration file not found: {Path}", path);
             }
             else
             {
-                _logger.LogWarning("Failed to load configuration from {Path}: {Error}", path, result.Error?.Message);
+                this._logger.LogWarning("Failed to load configuration from {Path}: {Error}", path, result.Error?.Message);
             }
             return null;
         }
@@ -224,7 +237,7 @@ public sealed class RepositoryConfigurationService
         var configData = result.Value!;
 
         // Cache for future requests
-        _cache.Set(cacheKey, configData.Content, new MemoryCacheEntryOptions
+        this._cache.Set(cacheKey, configData.Content, new MemoryCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
         });
@@ -243,7 +256,7 @@ public sealed class RepositoryConfigurationService
     {
         if (depth >= options.MaxExtendsDepth)
         {
-            _logger.LogWarning("Max _extends depth ({Depth}) reached, stopping resolution", depth);
+            this._logger.LogWarning("Max _extends depth ({Depth}) reached, stopping resolution", depth);
             return config;
         }
 
@@ -258,25 +271,25 @@ public sealed class RepositoryConfigurationService
             return config;
         }
 
-        _logger.LogDebug("Resolving _extends: {ExtendsPath} (depth: {Depth})", extendsPath, depth);
+        this._logger.LogDebug("Resolving _extends: {ExtendsPath} (depth: {Depth})", extendsPath, depth);
 
         // Parse extends path (can be "owner/repo" or "owner/repo:file.yml")
         var (extOwner, extRepo, extFile) = ParseExtendsPath(extendsPath, owner);
 
         var extPath = RepositoryConfigPath.ForRoot(extFile, extOwner, extRepo);
-        var parentConfig = await LoadSingleConfigAsync(extPath, installationId, cancellationToken);
+        var parentConfig = await this.LoadSingleConfigAsync(extPath, installationId, cancellationToken).ConfigureAwait(false);
 
         if (parentConfig == null)
         {
-            _logger.LogWarning("Failed to resolve _extends from {ExtendsPath}", extendsPath);
+            this._logger.LogWarning("Failed to resolve _extends from {ExtendsPath}", extendsPath);
             return config;
         }
 
         // Recursively resolve parent's _extends
         if (parentConfig.ContainsKey("_extends"))
         {
-            parentConfig = await ResolveExtendsAsync(
-                parentConfig, extOwner, extRepo, installationId, options, cancellationToken, depth + 1);
+            parentConfig = await this.ResolveExtendsAsync(
+                parentConfig, extOwner, extRepo, installationId, options, cancellationToken, depth + 1).ConfigureAwait(false);
         }
 
         // Remove _extends key before merging
@@ -406,3 +419,5 @@ public sealed class RepositoryConfigurationService
         return result;
     }
 }
+
+#pragma warning restore CA1848

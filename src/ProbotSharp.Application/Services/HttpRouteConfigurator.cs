@@ -6,6 +6,8 @@ using Microsoft.Extensions.Logging;
 
 using ProbotSharp.Application.Abstractions;
 
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
+
 namespace ProbotSharp.Application.Services;
 
 /// <summary>
@@ -29,9 +31,9 @@ public class HttpRouteConfigurator
         IServiceProvider serviceProvider,
         ILogger<HttpRouteConfigurator> logger)
     {
-        _apps = apps ?? throw new ArgumentNullException(nameof(apps));
-        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        this._apps = apps ?? throw new ArgumentNullException(nameof(apps));
+        this._serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        this._logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>
@@ -52,21 +54,21 @@ public class HttpRouteConfigurator
             throw new ArgumentNullException(nameof(endpoints));
         }
 
-        _logger.LogInformation("Configuring HTTP routes for {AppCount} loaded app(s)", _apps.Count);
+        this._logger.LogInformation("Configuring HTTP routes for {AppCount} loaded app(s)", this._apps.Count);
 
-        foreach (var app in _apps)
+        foreach (var app in this._apps)
         {
             try
             {
-                _logger.LogDebug("Configuring routes for app: {AppName} v{Version}", app.Name, app.Version);
+                this._logger.LogDebug("Configuring routes for app: {AppName} v{Version}", app.Name, app.Version);
 
-                await app.ConfigureRoutesAsync(endpoints, _serviceProvider);
+                await app.ConfigureRoutesAsync(endpoints, this._serviceProvider).ConfigureAwait(false);
 
-                _logger.LogInformation("Successfully configured routes for app: {AppName}", app.Name);
+                this._logger.LogInformation("Successfully configured routes for app: {AppName}", app.Name);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error configuring routes for app: {AppName}. Application startup will fail.", app.Name);
+                this._logger.LogError(ex, "Error configuring routes for app: {AppName}. Application startup will fail.", app.Name);
 
                 // Fail fast on route configuration errors
                 // This ensures apps are properly configured before accepting requests
@@ -76,6 +78,8 @@ public class HttpRouteConfigurator
             }
         }
 
-        _logger.LogInformation("Completed HTTP route configuration for all apps");
+        this._logger.LogInformation("Completed HTTP route configuration for all apps");
     }
 }
+
+#pragma warning restore CA1848

@@ -1,11 +1,11 @@
 // Copyright (c) ProbotSharp Contributors.
 // Licensed under the MIT License.
 
-using Spectre.Console;
-using Spectre.Console.Cli;
-
 using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Inbound;
+
+using Spectre.Console;
+using Spectre.Console.Cli;
 
 namespace ProbotSharp.Adapters.Cli.Commands;
 
@@ -16,16 +16,25 @@ public sealed class VersionCommand : AsyncCommand
 {
     private readonly ICliCommandPort _cliPort;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="VersionCommand"/> class.
+    /// </summary>
+    /// <param name="cliPort">The CLI command port for retrieving version information.</param>
     public VersionCommand(ICliCommandPort cliPort)
     {
-        _cliPort = cliPort;
+        this._cliPort = cliPort;
     }
 
+    /// <summary>
+    /// Executes the version command to display version information.
+    /// </summary>
+    /// <param name="context">The command context.</param>
+    /// <returns>Exit code: 0 for success, 1 for failure.</returns>
     public override async Task<int> ExecuteAsync(CommandContext context)
     {
         try
         {
-            var result = await _cliPort.GetVersionAsync(new GetVersionQuery(), CancellationToken.None);
+            var result = await this._cliPort.GetVersionAsync(new GetVersionQuery(), CancellationToken.None).ConfigureAwait(false);
 
             if (result.IsSuccess && !string.IsNullOrEmpty(result.Value))
             {

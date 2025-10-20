@@ -32,10 +32,10 @@ public sealed record RepositoryConfigData
         RepositoryConfigPath sourcePath,
         DateTimeOffset loadedAt)
     {
-        Content = content;
-        Sha = sha;
-        SourcePath = sourcePath;
-        LoadedAt = loadedAt;
+        this.Content = content;
+        this.Sha = sha;
+        this.SourcePath = sourcePath;
+        this.LoadedAt = loadedAt;
     }
 
     /// <summary>
@@ -58,6 +58,6 @@ public sealed record RepositoryConfigData
     /// </summary>
     public bool IsStale(TimeSpan ttl)
     {
-        return DateTimeOffset.UtcNow - LoadedAt > ttl;
+        return DateTimeOffset.UtcNow - this.LoadedAt > ttl;
     }
 }

@@ -16,17 +16,28 @@ public class CorrelationIdMiddleware
     private readonly ILogger<CorrelationIdMiddleware> _logger;
     private const string CorrelationIdHeaderName = "X-Correlation-ID";
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CorrelationIdMiddleware"/> class.
+    /// </summary>
+    /// <param name="next">The next middleware in the pipeline.</param>
+    /// <param name="logger">The logger for recording correlation ID operations.</param>
     public CorrelationIdMiddleware(RequestDelegate next, ILogger<CorrelationIdMiddleware> logger)
     {
-        _next = next;
-        _logger = logger;
+        this._next = next;
+        this._logger = logger;
     }
 
+    /// <summary>
+    /// Invokes the middleware to handle the HTTP request.
+    /// Extracts or generates correlation ID and adds it to request context and response headers.
+    /// </summary>
+    /// <param name="context">The HTTP context for the request.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public async Task InvokeAsync(HttpContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var correlationId = GetOrCreateCorrelationId(context);
+        var correlationId = this.GetOrCreateCorrelationId(context);
 
         // Store in HttpContext.Items for access by other middleware/handlers
         context.Items["CorrelationId"] = correlationId;
@@ -41,12 +52,12 @@ public class CorrelationIdMiddleware
             return Task.CompletedTask;
         });
 
-        using (_logger.BeginScope(new Dictionary<string, object>
+        using (this._logger.BeginScope(new Dictionary<string, object>
         {
             ["CorrelationId"] = correlationId
         }))
         {
-            await _next(context).ConfigureAwait(false);
+            await this._next(context).ConfigureAwait(false);
         }
     }
 

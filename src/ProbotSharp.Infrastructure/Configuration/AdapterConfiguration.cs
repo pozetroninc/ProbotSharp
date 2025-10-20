@@ -58,12 +58,12 @@ public sealed class AdapterConfiguration
     /// </summary>
     public void Validate()
     {
-        Cache.Validate();
-        Idempotency.Validate();
-        Persistence.Validate();
-        ReplayQueue.Validate();
-        Metrics.Validate();
-        Tracing.Validate();
+        this.Cache.Validate();
+        this.Idempotency.Validate();
+        this.Persistence.Validate();
+        this.ReplayQueue.Validate();
+        this.Metrics.Validate();
+        this.Tracing.Validate();
     }
 }
 
@@ -81,32 +81,34 @@ public sealed class CacheAdapterOptions
     /// <summary>
     /// Provider-specific options (e.g., Redis connection string).
     /// </summary>
+#pragma warning disable CA2227 // Required for configuration binding from appsettings.json
     public Dictionary<string, string> Options { get; set; } = new();
+#pragma warning restore CA2227
 
     /// <summary>
     /// Gets the Redis connection string from options.
     /// </summary>
     public string? GetRedisConnectionString() =>
-        Options.TryGetValue("ConnectionString", out var value) ? value : null;
+        this.Options.TryGetValue("ConnectionString", out var value) ? value : null;
 
     /// <summary>
     /// Gets the Redis instance name from options.
     /// </summary>
     public string GetRedisInstanceName() =>
-        Options.TryGetValue("InstanceName", out var value) ? value : "ProbotSharp:";
+        this.Options.TryGetValue("InstanceName", out var value) ? value : "ProbotSharp:";
 
     /// <summary>
     /// Validates cache configuration.
     /// </summary>
     public void Validate()
     {
-        if (Provider == CacheProvider.Redis || Provider == CacheProvider.Distributed)
+        if (this.Provider == CacheProvider.Redis || this.Provider == CacheProvider.Distributed)
         {
-            var connectionString = GetRedisConnectionString();
+            var connectionString = this.GetRedisConnectionString();
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 throw new InvalidOperationException(
-                    $"Cache provider '{Provider}' requires 'ConnectionString' in Options. " +
+                    $"Cache provider '{this.Provider}' requires 'ConnectionString' in Options. " +
                     "Add: \"Options\": { \"ConnectionString\": \"localhost:6379\" }");
             }
         }
@@ -127,32 +129,34 @@ public sealed class IdempotencyAdapterOptions
     /// <summary>
     /// Provider-specific options.
     /// </summary>
+#pragma warning disable CA2227 // Required for configuration binding from appsettings.json
     public Dictionary<string, string> Options { get; set; } = new();
+#pragma warning restore CA2227
 
     /// <summary>
     /// Gets the Redis connection string from options.
     /// </summary>
     public string? GetRedisConnectionString() =>
-        Options.TryGetValue("ConnectionString", out var value) ? value : null;
+        this.Options.TryGetValue("ConnectionString", out var value) ? value : null;
 
     /// <summary>
     /// Gets the expiration hours for idempotency keys.
     /// </summary>
     public int GetExpirationHours() =>
-        Options.TryGetValue("ExpirationHours", out var value) && int.TryParse(value, out var hours) ? hours : 24;
+        this.Options.TryGetValue("ExpirationHours", out var value) && int.TryParse(value, out var hours) ? hours : 24;
 
     /// <summary>
     /// Validates idempotency configuration.
     /// </summary>
     public void Validate()
     {
-        if (Provider == IdempotencyProvider.Redis)
+        if (this.Provider == IdempotencyProvider.Redis)
         {
-            var connectionString = GetRedisConnectionString();
+            var connectionString = this.GetRedisConnectionString();
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 throw new InvalidOperationException(
-                    $"Idempotency provider '{Provider}' requires 'ConnectionString' in Options.");
+                    $"Idempotency provider '{this.Provider}' requires 'ConnectionString' in Options.");
             }
         }
     }
@@ -172,26 +176,28 @@ public sealed class PersistenceAdapterOptions
     /// <summary>
     /// Provider-specific options.
     /// </summary>
+#pragma warning disable CA2227 // Required for configuration binding from appsettings.json
     public Dictionary<string, string> Options { get; set; } = new();
+#pragma warning restore CA2227
 
     /// <summary>
     /// Gets the database connection string from options.
     /// </summary>
     public string? GetConnectionString() =>
-        Options.TryGetValue("ConnectionString", out var value) ? value : null;
+        this.Options.TryGetValue("ConnectionString", out var value) ? value : null;
 
     /// <summary>
     /// Validates persistence configuration.
     /// </summary>
     public void Validate()
     {
-        if (Provider == PersistenceProvider.PostgreSQL)
+        if (this.Provider == PersistenceProvider.PostgreSQL)
         {
-            var connectionString = GetConnectionString();
+            var connectionString = this.GetConnectionString();
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 throw new InvalidOperationException(
-                    $"Persistence provider '{Provider}' requires 'ConnectionString' in Options.");
+                    $"Persistence provider '{this.Provider}' requires 'ConnectionString' in Options.");
             }
         }
     }
@@ -211,41 +217,43 @@ public sealed class ReplayQueueAdapterOptions
     /// <summary>
     /// Provider-specific options.
     /// </summary>
+#pragma warning disable CA2227 // Required for configuration binding from appsettings.json
     public Dictionary<string, string> Options { get; set; } = new();
+#pragma warning restore CA2227
 
     /// <summary>
     /// Gets the file system path from options.
     /// </summary>
     public string? GetPath() =>
-        Options.TryGetValue("Path", out var value) ? value : null;
+        this.Options.TryGetValue("Path", out var value) ? value : null;
 
     /// <summary>
     /// Gets the Azure Queue connection string from options.
     /// </summary>
     public string? GetAzureQueueConnectionString() =>
-        Options.TryGetValue("ConnectionString", out var value) ? value : null;
+        this.Options.TryGetValue("ConnectionString", out var value) ? value : null;
 
     /// <summary>
     /// Validates replay queue configuration.
     /// </summary>
     public void Validate()
     {
-        if (Provider == ReplayQueueProvider.FileSystem)
+        if (this.Provider == ReplayQueueProvider.FileSystem)
         {
-            var path = GetPath();
+            var path = this.GetPath();
             if (string.IsNullOrWhiteSpace(path))
             {
                 throw new InvalidOperationException(
-                    $"ReplayQueue provider '{Provider}' requires 'Path' in Options.");
+                    $"ReplayQueue provider '{this.Provider}' requires 'Path' in Options.");
             }
         }
-        else if (Provider == ReplayQueueProvider.AzureQueue)
+        else if (this.Provider == ReplayQueueProvider.AzureQueue)
         {
-            var connectionString = GetAzureQueueConnectionString();
+            var connectionString = this.GetAzureQueueConnectionString();
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 throw new InvalidOperationException(
-                    $"ReplayQueue provider '{Provider}' requires 'ConnectionString' in Options.");
+                    $"ReplayQueue provider '{this.Provider}' requires 'ConnectionString' in Options.");
             }
         }
     }
@@ -265,19 +273,21 @@ public sealed class MetricsAdapterOptions
     /// <summary>
     /// Provider-specific options.
     /// </summary>
+#pragma warning disable CA2227 // Required for configuration binding from appsettings.json
     public Dictionary<string, string> Options { get; set; } = new();
+#pragma warning restore CA2227
 
     /// <summary>
     /// Gets the meter name from options.
     /// </summary>
     public string GetMeterName() =>
-        Options.TryGetValue("MeterName", out var value) ? value : "ProbotSharp";
+        this.Options.TryGetValue("MeterName", out var value) ? value : "ProbotSharp";
 
     /// <summary>
     /// Gets the version from options.
     /// </summary>
     public string? GetVersion() =>
-        Options.TryGetValue("Version", out var value) ? value : null;
+        this.Options.TryGetValue("Version", out var value) ? value : null;
 
     /// <summary>
     /// Validates metrics configuration.
@@ -302,19 +312,21 @@ public sealed class TracingAdapterOptions
     /// <summary>
     /// Provider-specific options.
     /// </summary>
+#pragma warning disable CA2227 // Required for configuration binding from appsettings.json
     public Dictionary<string, string> Options { get; set; } = new();
+#pragma warning restore CA2227
 
     /// <summary>
     /// Gets the source name from options.
     /// </summary>
     public string GetSourceName() =>
-        Options.TryGetValue("SourceName", out var value) ? value : "ProbotSharp";
+        this.Options.TryGetValue("SourceName", out var value) ? value : "ProbotSharp";
 
     /// <summary>
     /// Gets the version from options.
     /// </summary>
     public string? GetVersion() =>
-        Options.TryGetValue("Version", out var value) ? value : null;
+        this.Options.TryGetValue("Version", out var value) ? value : null;
 
     /// <summary>
     /// Validates tracing configuration.

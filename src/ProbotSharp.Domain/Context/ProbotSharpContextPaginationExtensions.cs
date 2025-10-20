@@ -63,7 +63,7 @@ public static class ProbotSharpContextPaginationExtensions
         }
 
         var (owner, repo) = context.Repo();
-        return await context.GitHub.Issue.GetAllForRepository(owner, repo, options ?? ApiOptions.None);
+        return await context.GitHub.Issue.GetAllForRepository(owner, repo, options ?? ApiOptions.None).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -107,7 +107,7 @@ public static class ProbotSharpContextPaginationExtensions
         }
 
         var (owner, repo) = context.Repo();
-        return await context.GitHub.PullRequest.GetAllForRepository(owner, repo, options ?? ApiOptions.None);
+        return await context.GitHub.PullRequest.GetAllForRepository(owner, repo, options ?? ApiOptions.None).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -154,7 +154,7 @@ public static class ProbotSharpContextPaginationExtensions
         }
 
         var (owner, repo) = context.Repo();
-        return await context.GitHub.Issue.Comment.GetAllForIssue(owner, repo, issueNumber, options ?? ApiOptions.None);
+        return await context.GitHub.Issue.Comment.GetAllForIssue(owner, repo, issueNumber, options ?? ApiOptions.None).ConfigureAwait(false);
     }
 
 }

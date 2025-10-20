@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using Microsoft.Extensions.Logging;
+
 using NSubstitute;
+
 using ProbotSharp.Application.Abstractions;
 using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Inbound;
@@ -31,7 +33,7 @@ public class ProbotSharpContextFactoryTests
         _loggerFactory.CreateLogger(Arg.Any<string>()).Returns(_logger);
 
         // Setup HttpClient factory to return a mock HttpClient
-        var httpClient = new HttpClient { BaseAddress = new Uri("https://api.github.com/") };
+        using var httpClient = new HttpClient { BaseAddress = new Uri("https://api.github.com/") };
         _httpClientFactory.CreateClient("GitHubGraphQL").Returns(httpClient);
 
         _factory = new ProbotSharpContextFactory(_installationAuth, _loggerFactory, _httpClientFactory, Array.Empty<IProbotSharpContextConfigurator>());

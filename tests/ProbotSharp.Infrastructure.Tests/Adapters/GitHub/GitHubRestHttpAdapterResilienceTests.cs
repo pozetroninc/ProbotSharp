@@ -37,7 +37,8 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     public async Task SendAsync_ShouldReturnSuccess_WhenRequestSucceeds()
     {
         // Arrange
-        var httpClient = new HttpClient(new MockHttpMessageHandler(HttpStatusCode.OK));
+        using var handler = new MockHttpMessageHandler(HttpStatusCode.OK);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -54,7 +55,8 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     public async Task SendAsync_ShouldReturnFailure_WhenAllRetriesFail()
     {
         // Arrange - Return 500 repeatedly to exhaust retries
-        var httpClient = new HttpClient(new MockHttpMessageHandler(HttpStatusCode.InternalServerError));
+        using var handler = new MockHttpMessageHandler(HttpStatusCode.InternalServerError);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -71,7 +73,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - First 2 calls return 429, third succeeds
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return attemptCount <= 2
@@ -79,7 +81,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
                 : new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -97,7 +99,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - First call returns 503, second succeeds
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return attemptCount == 1
@@ -105,7 +107,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
                 : new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -123,13 +125,13 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - Return 404
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return new HttpResponseMessage(HttpStatusCode.NotFound);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -146,10 +148,10 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     public async Task SendAsync_ShouldReturnFailure_WhenHttpRequestExceptionOccurs()
     {
         // Arrange - Simulate network error
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
             throw new HttpRequestException("Network error"));
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -166,10 +168,10 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     public async Task SendAsync_ShouldReturnFailure_WhenTaskCanceledException()
     {
         // Arrange - Simulate timeout
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
             throw new TaskCanceledException("Request timed out"));
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -186,10 +188,10 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     public async Task SendAsync_ShouldReturnFailure_WhenUnexpectedExceptionOccurs()
     {
         // Arrange - Simulate unexpected error
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
             throw new InvalidOperationException("Unexpected error"));
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -207,7 +209,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - First call returns 502, second succeeds
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return attemptCount == 1
@@ -215,7 +217,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
                 : new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -235,7 +237,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - Simulate rate limit with retry
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return attemptCount <= 2
@@ -243,7 +245,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
                 : new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -262,7 +264,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
         // Arrange - Return rate limit with X-RateLimit-Reset header
         var resetTime = DateTimeOffset.UtcNow.AddSeconds(1).ToUnixTimeSeconds();
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             if (attemptCount == 1)
@@ -275,7 +277,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
             return new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -291,10 +293,10 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     public async Task SendAsync_WhenSecondaryRateLimited_ShouldReturnFailure()
     {
         // Arrange - Rate limit persists through all retries
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
             new HttpResponseMessage(HttpStatusCode.TooManyRequests));
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -311,7 +313,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - 429 without X-RateLimit-Reset header
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return attemptCount <= 1
@@ -319,7 +321,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
                 : new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -336,7 +338,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - Rate limit on first attempt, success on retry
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return attemptCount == 1
@@ -344,7 +346,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
                 : new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -366,7 +368,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - First attempt times out, second succeeds
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             if (attemptCount == 1)
@@ -377,7 +379,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
             return new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -394,10 +396,10 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     public async Task SendAsync_WhenAllRetriesTimeout_ShouldReturnFailure()
     {
         // Arrange - All attempts time out
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
             throw new TaskCanceledException("Request timed out"));
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -415,7 +417,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - Timeout during response read, then success
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             if (attemptCount == 1)
@@ -426,7 +428,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
             return new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -444,7 +446,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - Timeout on first attempt, success on retry
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             if (attemptCount == 1)
@@ -455,7 +457,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
             return new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -477,7 +479,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - Service unavailable, then recovers
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return attemptCount <= 2
@@ -485,7 +487,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
                 : new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -503,7 +505,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - Bad gateway, then recovers
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return attemptCount <= 1
@@ -511,7 +513,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
                 : new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -528,10 +530,10 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     public async Task SendAsync_WhenMaintenanceExtended_ShouldReturnFailure()
     {
         // Arrange - Service unavailable persists through all retries
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
             new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -548,7 +550,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - Maintenance mode, then recovers
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return attemptCount == 1
@@ -556,7 +558,7 @@ public sealed class GitHubRestHttpAdapterResilienceTests
                 : new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -578,13 +580,13 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - Return 401 Unauthorized
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return new HttpResponseMessage(HttpStatusCode.Unauthorized);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -602,13 +604,13 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - Return 404 Not Found
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return new HttpResponseMessage(HttpStatusCode.NotFound);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act
@@ -626,13 +628,13 @@ public sealed class GitHubRestHttpAdapterResilienceTests
     {
         // Arrange - Always fail with 500 to test max retries
         var attemptCount = 0;
-        var handler = new DelegatingHandler(req =>
+        using var handler = new DelegatingHandler(req =>
         {
             attemptCount++;
             return new HttpResponseMessage(HttpStatusCode.InternalServerError);
         });
 
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
         this._httpClientFactory.CreateClient("GitHubRest").Returns(httpClient);
 
         // Act

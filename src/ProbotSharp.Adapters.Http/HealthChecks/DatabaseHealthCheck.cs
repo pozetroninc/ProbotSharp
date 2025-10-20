@@ -8,15 +8,28 @@ using ProbotSharp.Infrastructure.Adapters.Persistence;
 
 namespace ProbotSharp.Adapters.Http.HealthChecks;
 
+/// <summary>
+/// Health check for database connectivity and availability.
+/// </summary>
 public sealed class DatabaseHealthCheck : IHealthCheck
 {
     private readonly ProbotSharpDbContext _dbContext;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DatabaseHealthCheck"/> class.
+    /// </summary>
+    /// <param name="dbContext">The database context to check.</param>
     public DatabaseHealthCheck(ProbotSharpDbContext dbContext)
     {
-        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        this._dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
+    /// <summary>
+    /// Checks the health of the database connection.
+    /// </summary>
+    /// <param name="context">The health check context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The health check result.</returns>
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
@@ -24,17 +37,17 @@ public sealed class DatabaseHealthCheck : IHealthCheck
         try
         {
             // Attempt to connect to the database and execute a simple query
-            await _dbContext.Database.CanConnectAsync(cancellationToken).ConfigureAwait(false);
+            await this._dbContext.Database.CanConnectAsync(cancellationToken).ConfigureAwait(false);
 
-            var providerName = _dbContext.Database.ProviderName ?? "Unknown";
+            var providerName = this._dbContext.Database.ProviderName ?? "Unknown";
             var data = new Dictionary<string, object>
             {
                 { "database_provider", providerName }
             };
 
-            if (_dbContext.Database.IsRelational())
+            if (this._dbContext.Database.IsRelational())
             {
-                data.Add("connection_string", MaskConnectionString(_dbContext.Database.GetConnectionString()));
+                data.Add("connection_string", MaskConnectionString(this._dbContext.Database.GetConnectionString()));
             }
             else
             {

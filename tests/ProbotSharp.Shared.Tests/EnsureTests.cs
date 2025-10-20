@@ -83,4 +83,3 @@ public class EnsureTests
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 }
-
