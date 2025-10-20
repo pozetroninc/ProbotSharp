@@ -3,8 +3,11 @@
 
 using System;
 using System.IO;
+
 using Microsoft.Extensions.Logging;
+
 using NSubstitute;
+
 using ProbotSharp.Application.Models;
 using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Infrastructure.Adapters.Workers;
@@ -26,7 +29,16 @@ public sealed class FileSystemDeadLetterQueueAdapterTests : IDisposable
 
     public void Dispose()
     {
-        try { if (Directory.Exists(_dir)) Directory.Delete(_dir, true); } catch { }
+        try
+        {
+            if (Directory.Exists(_dir))
+            {
+                Directory.Delete(_dir, true);
+            }
+        }
+        catch
+        {
+        }
     }
 
     private static EnqueueReplayCommand CreateReplayCommand(int attempt = 1)
@@ -118,5 +130,3 @@ public sealed class FileSystemDeadLetterQueueAdapterTests : IDisposable
         result.Error!.Value.Code.Should().Be("dead_letter_write_failed");
     }
 }
-
-

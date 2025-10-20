@@ -13,6 +13,8 @@ using ProbotSharp.Application.Abstractions.Events;
 using ProbotSharp.Application.EventHandlers;
 using ProbotSharp.Application.Services;
 
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
+
 namespace ProbotSharp.Application.Extensions;
 
 /// <summary>
@@ -160,8 +162,8 @@ public static class ServiceCollectionExtensions
         var loadedApps = new List<IProbotApp>();
         foreach (var appType in appTypes)
         {
-            var app = await appLoader.LoadAppAsync(appType, tempServiceProvider);
-            await appLoader.ConfigureAppAsync(app, services, configuration);
+            var app = await appLoader.LoadAppAsync(appType, tempServiceProvider).ConfigureAwait(false);
+            await appLoader.ConfigureAppAsync(app, services, configuration).ConfigureAwait(false);
             loadedApps.Add(app);
         }
 
@@ -253,3 +255,5 @@ public static class ServiceCollectionExtensions
         return services;
     }
 }
+
+#pragma warning restore CA1848

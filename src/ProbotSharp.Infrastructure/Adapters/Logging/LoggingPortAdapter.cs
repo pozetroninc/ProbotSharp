@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 
 using ProbotSharp.Application.Ports.Outbound;
 
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
+
 namespace ProbotSharp.Infrastructure.Adapters.Logging;
 
 /// <summary>
@@ -92,3 +94,5 @@ public sealed class LoggingPortAdapter : ILoggingPort
         }
     }
 }
+
+#pragma warning restore CA1848

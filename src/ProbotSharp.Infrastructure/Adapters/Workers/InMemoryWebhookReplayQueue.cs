@@ -3,7 +3,9 @@
 
 using System.Collections.Concurrent;
 using System.Globalization;
+
 using Microsoft.Extensions.Logging;
+
 using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Shared.Abstractions;
@@ -50,4 +52,3 @@ public sealed class InMemoryWebhookReplayQueueAdapter : IWebhookReplayQueuePort
         return Task.FromResult(Result<EnqueueReplayCommand?>.Success(hasItem ? command : null));
     }
 }
-

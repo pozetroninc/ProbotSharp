@@ -55,10 +55,17 @@ public sealed class FileManifestPersistenceAdapter : IManifestPersistencePort
                 return Result<string?>.Success(null);
             }
 
-            await using var stream = new FileStream(this._manifestPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            using var reader = new StreamReader(stream);
-            var content = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
-            return Result<string?>.Success(content);
+            var stream = new FileStream(this._manifestPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            try
+            {
+                using var reader = new StreamReader(stream);
+                var content = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+                return Result<string?>.Success(content);
+            }
+            finally
+            {
+                await stream.DisposeAsync().ConfigureAwait(false);
+            }
         }
         catch (IOException ex)
         {
@@ -110,4 +117,3 @@ public sealed class FileManifestPersistenceAdapter : IManifestPersistencePort
         }
     }
 }
-

@@ -39,7 +39,7 @@ public static class ProbotSharpContextMetadataExtensions
             throw new InvalidOperationException("Metadata requires issue or pull request context");
         }
 
-        return await port.GetAsync(context.Repository.Owner, context.Repository.Name, issueNumber.Value, key, ct);
+        return await port.GetAsync(context.Repository.Owner, context.Repository.Name, issueNumber.Value, key, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -69,7 +69,7 @@ public static class ProbotSharpContextMetadataExtensions
             throw new InvalidOperationException("Metadata requires issue or pull request context");
         }
 
-        await port.SetAsync(context.Repository.Owner, context.Repository.Name, issueNumber.Value, key, value, ct);
+        await port.SetAsync(context.Repository.Owner, context.Repository.Name, issueNumber.Value, key, value, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -98,7 +98,7 @@ public static class ProbotSharpContextMetadataExtensions
             throw new InvalidOperationException("Metadata requires issue or pull request context");
         }
 
-        return await port.ExistsAsync(context.Repository.Owner, context.Repository.Name, issueNumber.Value, key, ct);
+        return await port.ExistsAsync(context.Repository.Owner, context.Repository.Name, issueNumber.Value, key, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -126,7 +126,7 @@ public static class ProbotSharpContextMetadataExtensions
             throw new InvalidOperationException("Metadata requires issue or pull request context");
         }
 
-        await port.DeleteAsync(context.Repository.Owner, context.Repository.Name, issueNumber.Value, key, ct);
+        await port.DeleteAsync(context.Repository.Owner, context.Repository.Name, issueNumber.Value, key, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -153,7 +153,7 @@ public static class ProbotSharpContextMetadataExtensions
             throw new InvalidOperationException("Metadata requires issue or pull request context");
         }
 
-        return await port.GetAllAsync(context.Repository.Owner, context.Repository.Name, issueNumber.Value, ct);
+        return await port.GetAllAsync(context.Repository.Owner, context.Repository.Name, issueNumber.Value, ct).ConfigureAwait(false);
     }
 
     private static int? GetIssueNumberFromPayload(JObject payload)

@@ -81,4 +81,3 @@ public class ResultTests
         error.ToString().Should().Be("code: message");
     }
 }
-

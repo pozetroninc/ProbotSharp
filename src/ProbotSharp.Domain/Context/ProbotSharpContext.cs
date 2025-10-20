@@ -2,8 +2,11 @@
 // Licensed under the MIT License.
 
 using Microsoft.Extensions.Logging;
+
 using Newtonsoft.Json.Linq;
+
 using Octokit;
+
 using ProbotSharp.Domain.Contracts;
 
 namespace ProbotSharp.Domain.Context;
@@ -64,7 +67,7 @@ public sealed class ProbotSharpContext
     /// Gets the metadata dictionary for storing extension data.
     /// Internal to allow Application/Infrastructure layers to attach services.
     /// </summary>
-    internal Dictionary<string, object> Metadata => _metadata;
+    internal Dictionary<string, object> Metadata => this._metadata;
 
     /// <summary>
     /// Gets the unique delivery ID for this webhook event.

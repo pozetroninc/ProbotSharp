@@ -9,7 +9,9 @@ public sealed class PagedResult<T>
     /// <summary>
     /// The items in the current page.
     /// </summary>
+#pragma warning disable CA2227 // Required for JSON deserialization
     public List<T> Items { get; set; } = new();
+#pragma warning restore CA2227
 
     /// <summary>
     /// The current page number (1-based).
@@ -29,15 +31,15 @@ public sealed class PagedResult<T>
     /// <summary>
     /// The total number of pages.
     /// </summary>
-    public int TotalPages => PageSize > 0 ? (int)Math.Ceiling((double)TotalCount / PageSize) : 0;
+    public int TotalPages => this.PageSize > 0 ? (int)Math.Ceiling((double)this.TotalCount / this.PageSize) : 0;
 
     /// <summary>
     /// Indicates whether there is a previous page.
     /// </summary>
-    public bool HasPrevious => PageNumber > 1;
+    public bool HasPrevious => this.PageNumber > 1;
 
     /// <summary>
     /// Indicates whether there is a next page.
     /// </summary>
-    public bool HasNext => PageNumber < TotalPages;
+    public bool HasNext => this.PageNumber < this.TotalPages;
 }

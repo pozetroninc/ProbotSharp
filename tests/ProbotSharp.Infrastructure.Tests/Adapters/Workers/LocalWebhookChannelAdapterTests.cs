@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using Microsoft.Extensions.Logging;
+
 using NSubstitute;
+
 using ProbotSharp.Infrastructure.Adapters.Workers;
 
 namespace ProbotSharp.Infrastructure.Tests.Adapters.Workers;
@@ -22,6 +24,3 @@ public sealed class LocalWebhookChannelAdapterTests
         result.Value!.WebhookProxyUrl.Should().StartWith("https://smee.io/");
     }
 }
-
-
-

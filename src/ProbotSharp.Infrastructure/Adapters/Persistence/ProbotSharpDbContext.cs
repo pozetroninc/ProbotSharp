@@ -25,27 +25,27 @@ public sealed class ProbotSharpDbContext : DbContext
     /// <summary>
     /// Gets the database set for webhook delivery entities.
     /// </summary>
-    public DbSet<WebhookDeliveryEntity> WebhookDeliveries => Set<WebhookDeliveryEntity>();
+    public DbSet<WebhookDeliveryEntity> WebhookDeliveries => this.Set<WebhookDeliveryEntity>();
 
     /// <summary>
     /// Gets the database set for GitHub App manifest entities.
     /// </summary>
-    public DbSet<GitHubAppManifestEntity> GitHubAppManifests => Set<GitHubAppManifestEntity>();
+    public DbSet<GitHubAppManifestEntity> GitHubAppManifests => this.Set<GitHubAppManifestEntity>();
 
     /// <summary>
     /// Gets the database set for idempotency record entities.
     /// </summary>
-    public DbSet<IdempotencyRecordEntity> IdempotencyRecords => Set<IdempotencyRecordEntity>();
+    public DbSet<IdempotencyRecordEntity> IdempotencyRecords => this.Set<IdempotencyRecordEntity>();
 
     /// <summary>
     /// Gets the database set for issue metadata entities.
     /// </summary>
-    public DbSet<IssueMetadataEntity> IssueMetadata => Set<IssueMetadataEntity>();
+    public DbSet<IssueMetadataEntity> IssueMetadata => this.Set<IssueMetadataEntity>();
 
     /// <summary>
     /// Gets the database set for dead-letter queue item entities.
     /// </summary>
-    public DbSet<DeadLetterQueueItemEntity> DeadLetterQueueItems => Set<DeadLetterQueueItemEntity>();
+    public DbSet<DeadLetterQueueItemEntity> DeadLetterQueueItems => this.Set<DeadLetterQueueItemEntity>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)

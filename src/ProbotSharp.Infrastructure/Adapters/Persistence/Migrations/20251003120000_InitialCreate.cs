@@ -56,4 +56,3 @@ public partial class InitialCreate : Migration
             schema: "probot");
     }
 }
-

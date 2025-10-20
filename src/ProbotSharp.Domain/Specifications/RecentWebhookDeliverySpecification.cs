@@ -16,7 +16,7 @@ public sealed class RecentWebhookDeliverySpecification : Specification<WebhookDe
     /// <summary>
     /// Initializes a new instance with the specified recency threshold.
     /// </summary>
-    /// <param name="recencyThreshold">The maximum age for a delivery to be considered recent</param>
+    /// <param name="recencyThreshold">The maximum age for a delivery to be considered recent.</param>
     public RecentWebhookDeliverySpecification(TimeSpan recencyThreshold)
     {
         if (recencyThreshold <= TimeSpan.Zero)
@@ -24,7 +24,7 @@ public sealed class RecentWebhookDeliverySpecification : Specification<WebhookDe
             throw new ArgumentOutOfRangeException(nameof(recencyThreshold), "Recency threshold must be positive.");
         }
 
-        _recencyThreshold = recencyThreshold;
+        this._recencyThreshold = recencyThreshold;
     }
 
     /// <summary>
@@ -45,11 +45,16 @@ public sealed class RecentWebhookDeliverySpecification : Specification<WebhookDe
     public static RecentWebhookDeliverySpecification WithinLastWeek()
         => new(TimeSpan.FromDays(7));
 
+    /// <summary>
+    /// Determines whether the specified webhook delivery was delivered recently.
+    /// </summary>
+    /// <param name="candidate">The webhook delivery to evaluate.</param>
+    /// <returns>True if the delivery is within the recency threshold; otherwise, false.</returns>
     public override bool IsSatisfiedBy(WebhookDelivery candidate)
     {
         ArgumentNullException.ThrowIfNull(candidate);
 
         var age = DateTimeOffset.UtcNow - candidate.DeliveredAt;
-        return age <= _recencyThreshold;
+        return age <= this._recencyThreshold;
     }
 }

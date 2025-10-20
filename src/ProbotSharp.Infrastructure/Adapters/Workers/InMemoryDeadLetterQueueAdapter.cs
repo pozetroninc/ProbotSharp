@@ -9,6 +9,8 @@ using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Shared.Abstractions;
 
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
+
 namespace ProbotSharp.Infrastructure.Adapters.Workers;
 
 /// <summary>
@@ -117,3 +119,5 @@ public sealed class InMemoryDeadLetterQueueAdapter : IDeadLetterQueuePort
         return Task.FromResult(Result.Success());
     }
 }
+
+#pragma warning restore CA1848

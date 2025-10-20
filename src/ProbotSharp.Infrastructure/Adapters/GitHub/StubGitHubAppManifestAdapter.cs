@@ -11,6 +11,8 @@ using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Shared.Abstractions;
 
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
+
 namespace ProbotSharp.Infrastructure.Adapters.GitHub;
 
 /// <summary>
@@ -91,3 +93,4 @@ public sealed class StubGitHubAppManifestAdapter : IGitHubAppManifestPort
     }
 }
 
+#pragma warning restore CA1848

@@ -7,6 +7,8 @@ using Microsoft.Extensions.Logging;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Domain.ValueObjects;
 
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
+
 namespace ProbotSharp.Adapters.Http.Middleware;
 
 /// <summary>
@@ -28,8 +30,8 @@ public sealed class IdempotencyMiddleware
         RequestDelegate next,
         ILogger<IdempotencyMiddleware> logger)
     {
-        _next = next ?? throw new ArgumentNullException(nameof(next));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        this._next = next ?? throw new ArgumentNullException(nameof(next));
+        this._logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>
@@ -46,7 +48,7 @@ public sealed class IdempotencyMiddleware
         // Only apply idempotency to webhook endpoints
         if (!IsWebhookRequest(context.Request))
         {
-            await _next(context).ConfigureAwait(false);
+            await this._next(context).ConfigureAwait(false);
             return;
         }
 
@@ -54,10 +56,10 @@ public sealed class IdempotencyMiddleware
         if (!context.Request.Headers.TryGetValue(GitHubDeliveryHeader, out var deliveryIdValue) ||
             string.IsNullOrWhiteSpace(deliveryIdValue))
         {
-            _logger.LogWarning(
+            this._logger.LogWarning(
                 "Webhook request missing {Header} header. Idempotency check skipped",
                 GitHubDeliveryHeader);
-            await _next(context).ConfigureAwait(false);
+            await this._next(context).ConfigureAwait(false);
             return;
         }
 
@@ -75,7 +77,7 @@ public sealed class IdempotencyMiddleware
             if (!acquired)
             {
                 // Duplicate webhook delivery
-                _logger.LogWarning(
+                this._logger.LogWarning(
                     "Duplicate webhook delivery detected: {DeliveryId}. Request rejected",
                     deliveryId.Value);
 
@@ -87,21 +89,21 @@ public sealed class IdempotencyMiddleware
             }
 
             // Process the webhook
-            _logger.LogDebug(
+            this._logger.LogDebug(
                 "Idempotency lock acquired for delivery: {DeliveryId}",
                 deliveryId.Value);
 
-            await _next(context).ConfigureAwait(false);
+            await this._next(context).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            this._logger.LogError(
                 ex,
                 "Error during idempotency check for delivery: {DeliveryId}",
                 deliveryIdValue);
 
             // Fail open: allow the request to proceed if idempotency check fails
-            await _next(context).ConfigureAwait(false);
+            await this._next(context).ConfigureAwait(false);
         }
     }
 
@@ -112,3 +114,5 @@ public sealed class IdempotencyMiddleware
             || request.Path.StartsWithSegments("/webhooks", StringComparison.OrdinalIgnoreCase);
     }
 }
+
+#pragma warning restore CA1848

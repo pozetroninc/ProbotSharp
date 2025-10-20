@@ -7,6 +7,8 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
+
 namespace ProbotSharp.Adapters.Http.Middleware;
 
 /// <summary>
@@ -15,27 +17,44 @@ namespace ProbotSharp.Adapters.Http.Middleware;
 /// </summary>
 public class GlobalExceptionHandlingMiddleware
 {
+    private static readonly JsonSerializerOptions s_jsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false,
+    };
+
     private readonly RequestDelegate _next;
     private readonly ILogger<GlobalExceptionHandlingMiddleware> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GlobalExceptionHandlingMiddleware"/> class.
+    /// </summary>
+    /// <param name="next">The next middleware in the pipeline.</param>
+    /// <param name="logger">The logger for recording unhandled exceptions.</param>
     public GlobalExceptionHandlingMiddleware(RequestDelegate next, ILogger<GlobalExceptionHandlingMiddleware> logger)
     {
-        _next = next;
-        _logger = logger;
+        this._next = next;
+        this._logger = logger;
     }
 
+    /// <summary>
+    /// Invokes the middleware to handle the HTTP request.
+    /// Catches any unhandled exceptions and returns RFC 7807 Problem Details responses.
+    /// </summary>
+    /// <param name="context">The HTTP context for the request.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public async Task InvokeAsync(HttpContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
         try
         {
-            await _next(context).ConfigureAwait(false);
+            await this._next(context).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             // CA1031: Catching general exception is intentional here for global exception handling
-            await HandleExceptionAsync(context, ex).ConfigureAwait(false);
+            await this.HandleExceptionAsync(context, ex).ConfigureAwait(false);
         }
     }
 
@@ -44,7 +63,7 @@ public class GlobalExceptionHandlingMiddleware
         var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
         var correlationId = context.Items["CorrelationId"]?.ToString() ?? traceId;
 
-        _logger.LogError(exception,
+        this._logger.LogError(exception,
             "Unhandled exception occurred. TraceId: {TraceId}, CorrelationId: {CorrelationId}, Path: {Path}",
             traceId, correlationId, context.Request.Path);
 
@@ -70,13 +89,7 @@ public class GlobalExceptionHandlingMiddleware
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/problem+json";
 
-        var options = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = false
-        };
-
-        var json = JsonSerializer.Serialize(problemDetails, options);
+        var json = JsonSerializer.Serialize(problemDetails, s_jsonOptions);
         await context.Response.WriteAsync(json, context.RequestAborted).ConfigureAwait(false);
     }
 
@@ -102,3 +115,5 @@ public class GlobalExceptionHandlingMiddleware
         public string CorrelationId { get; set; } = string.Empty;
     }
 }
+
+#pragma warning restore CA1848

@@ -1,12 +1,12 @@
 // Copyright (c) ProbotSharp Contributors.
 // Licensed under the MIT License.
 
-using StackExchange.Redis;
-
 using NSubstitute;
 
 using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Infrastructure.Adapters.Caching;
+
+using StackExchange.Redis;
 
 namespace ProbotSharp.Infrastructure.Tests.Adapters.Caching;
 

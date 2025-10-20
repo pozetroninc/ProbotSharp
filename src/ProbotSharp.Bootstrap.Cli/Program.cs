@@ -2,13 +2,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-using Spectre.Console.Cli;
-
 using ProbotSharp.Adapters.Cli;
 using ProbotSharp.Adapters.Cli.Commands;
 using ProbotSharp.Application.Extensions;
 using ProbotSharp.Application.Ports.Inbound;
 using ProbotSharp.Infrastructure.Extensions;
+
+using Spectre.Console.Cli;
 
 // Build the host for dependency injection
 var builder = Host.CreateApplicationBuilder(args);
@@ -78,7 +78,7 @@ app.Configure(config =>
 });
 
 // Run the application
-return await app.RunAsync(args);
+return await app.RunAsync(args).ConfigureAwait(false);
 
 /// <summary>
 /// Type registrar for integrating Spectre.Console.Cli with Microsoft.Extensions.DependencyInjection.
@@ -89,12 +89,12 @@ internal sealed class TypeRegistrar : ITypeRegistrar
 
     public TypeRegistrar(IServiceProvider provider)
     {
-        _provider = provider;
+        this._provider = provider;
     }
 
     public ITypeResolver Build()
     {
-        return new TypeResolver(_provider);
+        return new TypeResolver(this._provider);
     }
 
     public void Register(Type service, Type implementation)
@@ -122,11 +122,11 @@ internal sealed class TypeResolver : ITypeResolver
 
     public TypeResolver(IServiceProvider provider)
     {
-        _provider = provider;
+        this._provider = provider;
     }
 
     public object? Resolve(Type? type)
     {
-        return type == null ? null : _provider.GetService(type);
+        return type == null ? null : this._provider.GetService(type);
     }
 }

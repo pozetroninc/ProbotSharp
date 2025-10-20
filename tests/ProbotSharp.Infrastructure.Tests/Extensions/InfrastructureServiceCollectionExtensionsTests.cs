@@ -3,10 +3,13 @@
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+
+using NSubstitute;
+
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Infrastructure.Extensions;
+
 using StackExchange.Redis;
-using NSubstitute;
 
 namespace ProbotSharp.Infrastructure.Tests.Extensions;
 
@@ -165,6 +168,3 @@ public sealed class InfrastructureServiceCollectionExtensionsAdditionalTests
         act.Should().Throw<InvalidOperationException>();
     }
 }
-
-
-

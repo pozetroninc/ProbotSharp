@@ -45,4 +45,3 @@ internal sealed class WebhookDeliveryConfiguration : IEntityTypeConfiguration<We
             .HasMaxLength(64);
     }
 }
-

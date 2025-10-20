@@ -12,10 +12,10 @@ public static partial class MiddlewareExtensions
 {
     /// <summary>
     /// Adds all ProbotSharp middleware to the application pipeline in the correct order:
-    /// 1. Correlation ID (must be first to generate IDs for logging)
-    /// 2. Response Time tracking
-    /// 3. Request Logging
-    /// 4. Global Exception Handling (must be early to catch all exceptions)
+    /// 1. Correlation ID (must be first to generate IDs for logging).
+    /// 2. Response Time tracking.
+    /// 3. Request Logging.
+    /// 4. Global Exception Handling (must be early to catch all exceptions).
     /// </summary>
     public static IApplicationBuilder UseProbotSharpMiddleware(this IApplicationBuilder app)
     {

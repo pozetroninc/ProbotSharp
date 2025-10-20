@@ -234,8 +234,8 @@ public sealed class InMemoryIdempotencyAdapterTests : IDisposable
     {
         // Arrange
         var key = IdempotencyKey.Create("test-key");
-        var cts = new CancellationTokenSource();
-        cts.Cancel();
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
 
         // Act
         var act = async () => await this._adapter.TryAcquireAsync(key, cancellationToken: cts.Token);

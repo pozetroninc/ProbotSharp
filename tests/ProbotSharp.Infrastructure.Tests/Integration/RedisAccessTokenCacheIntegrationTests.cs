@@ -3,10 +3,14 @@
 
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
+
 using FluentAssertions;
+
 using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Infrastructure.Adapters.Caching;
+
 using StackExchange.Redis;
+
 using Xunit;
 
 namespace ProbotSharp.Infrastructure.Tests.Integration;
@@ -74,7 +78,11 @@ public sealed class RedisAccessTokenCacheIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task GetAsync_WhenKeyDoesNotExist_ShouldReturnNull()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var installationId = InstallationId.Create(99999);
 
@@ -88,7 +96,11 @@ public sealed class RedisAccessTokenCacheIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task SetAndGetAsync_ShouldStoreAndRetrieveToken()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var installationId = InstallationId.Create(12345);
         var token = InstallationAccessToken.Create(
@@ -108,7 +120,11 @@ public sealed class RedisAccessTokenCacheIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task SetAsync_WithTtl_ShouldExpireAfterCalculatedTtl()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var installationId = InstallationId.Create(54321);
 
@@ -133,7 +149,11 @@ public sealed class RedisAccessTokenCacheIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task ConcurrentWrites_ShouldHandleCorrectly()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var installationId = InstallationId.Create(22222);
         var tasks = new List<Task>();
@@ -162,7 +182,11 @@ public sealed class RedisAccessTokenCacheIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task MultipleInstallations_ShouldStoreIndependently()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var id1 = InstallationId.Create(100);
         var id2 = InstallationId.Create(200);
@@ -190,7 +214,11 @@ public sealed class RedisAccessTokenCacheIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task SetAsync_WhenUpdatingExisting_ShouldOverwrite()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var installationId = InstallationId.Create(33333);
         var token1 = InstallationAccessToken.Create("ghs_original", DateTimeOffset.UtcNow.AddHours(1));
@@ -209,7 +237,11 @@ public sealed class RedisAccessTokenCacheIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task GetAsync_AfterRedisFlush_ShouldReturnNull()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var installationId = InstallationId.Create(44444);
         var token = InstallationAccessToken.Create("ghs_beforeflush", DateTimeOffset.UtcNow.AddHours(1));
@@ -228,7 +260,11 @@ public sealed class RedisAccessTokenCacheIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task SetAsync_ShouldSerializeAndDeserializeComplexToken()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var installationId = InstallationId.Create(55555);
         var expiresAt = DateTimeOffset.UtcNow.AddHours(1);
@@ -249,7 +285,11 @@ public sealed class RedisAccessTokenCacheIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task ConcurrentReads_ShouldReturnConsistentData()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var installationId = InstallationId.Create(66666);
         var token = InstallationAccessToken.Create("ghs_concurrent_read", DateTimeOffset.UtcNow.AddHours(1));
@@ -275,7 +315,11 @@ public sealed class RedisAccessTokenCacheIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task SetAsync_WithVeryShortTtl_ShouldExpireQuickly()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var installationId = InstallationId.Create(77777);
 
@@ -300,7 +344,11 @@ public sealed class RedisAccessTokenCacheIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task GetAsync_WithMultipleInstallations_ShouldIsolateData()
     {
-        if (!_available) return;
+        if (!_available)
+        {
+            return;
+        }
+
         // Arrange
         var installations = Enumerable.Range(1, 50)
             .Select(i => InstallationId.Create(10000 + i))

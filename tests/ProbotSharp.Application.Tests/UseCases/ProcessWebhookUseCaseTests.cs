@@ -270,4 +270,3 @@ public class ProcessWebhookUseCaseTests
         return "sha256=" + Convert.ToHexString(hash).ToLowerInvariant();
     }
 }
-

@@ -435,8 +435,8 @@ def main():
     parser.add_argument(
         '--exclude',
         nargs='+',
-        default=['node_modules/', '.git/', '.aidocs/', 'TEST-MARKDOWN-VERIFIER.md'],
-        help='Patterns to exclude from search (default: node_modules/ .git/ .aidocs/ TEST-MARKDOWN-VERIFIER.md)'
+        default=['node_modules/', '.git/', '.aidocs/', '.worktrees/', 'TEST-MARKDOWN-VERIFIER.md'],
+        help='Patterns to exclude from search (default: node_modules/ .git/ .aidocs/ .worktrees/ TEST-MARKDOWN-VERIFIER.md)'
     )
 
     args = parser.parse_args()

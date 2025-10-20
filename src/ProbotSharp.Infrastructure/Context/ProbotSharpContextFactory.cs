@@ -2,8 +2,11 @@
 // Licensed under the MIT License.
 
 using Microsoft.Extensions.Logging;
+
 using Newtonsoft.Json.Linq;
+
 using Octokit;
+
 using ProbotSharp.Application.Abstractions;
 using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Inbound;
@@ -11,6 +14,8 @@ using ProbotSharp.Domain.Context;
 using ProbotSharp.Domain.Entities;
 using ProbotSharp.Domain.Models;
 using ProbotSharp.Domain.ValueObjects;
+
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
 
 namespace ProbotSharp.Infrastructure.Context;
 
@@ -37,10 +42,10 @@ public sealed class ProbotSharpContextFactory : IProbotSharpContextFactory
         IHttpClientFactory httpClientFactory,
         IEnumerable<IProbotSharpContextConfigurator> configurators)
     {
-        _installationAuth = installationAuth ?? throw new ArgumentNullException(nameof(installationAuth));
-        _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
-        _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
-        _configurators = configurators ?? throw new ArgumentNullException(nameof(configurators));
+        this._installationAuth = installationAuth ?? throw new ArgumentNullException(nameof(installationAuth));
+        this._loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+        this._httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+        this._configurators = configurators ?? throw new ArgumentNullException(nameof(configurators));
     }
 
     /// <inheritdoc/>
@@ -64,7 +69,7 @@ public sealed class ProbotSharpContextFactory : IProbotSharpContextFactory
         var installation = ExtractInstallationInfo(payload);
 
         // Create scoped logger with event context
-        var logger = _loggerFactory.CreateLogger($"ProbotSharp.Event.{delivery.EventName.Value}");
+        var logger = this._loggerFactory.CreateLogger($"ProbotSharp.Event.{delivery.EventName.Value}");
         using (logger.BeginScope(new Dictionary<string, object>
         {
             ["DeliveryId"] = delivery.Id.Value,
@@ -88,7 +93,7 @@ public sealed class ProbotSharpContextFactory : IProbotSharpContextFactory
             {
                 // Authenticate and create installation-scoped client
                 var authCommand = new AuthenticateInstallationCommand(delivery.InstallationId);
-                var authResult = await _installationAuth.AuthenticateAsync(authCommand, cancellationToken)
+                var authResult = await this._installationAuth.AuthenticateAsync(authCommand, cancellationToken)
                     .ConfigureAwait(false);
 
                 if (!authResult.IsSuccess || authResult.Value == null)
@@ -108,7 +113,7 @@ public sealed class ProbotSharpContextFactory : IProbotSharpContextFactory
                 };
 
                 // Create GraphQL client with the installation access token
-                graphQLClient = new InstallationAuthenticatedGraphQLClient(_httpClientFactory, token.Value);
+                graphQLClient = new InstallationAuthenticatedGraphQLClient(this._httpClientFactory, token.Value);
             }
             else
             {
@@ -118,7 +123,7 @@ public sealed class ProbotSharpContextFactory : IProbotSharpContextFactory
                 gitHubClient = new GitHubClient(new ProductHeaderValue("ProbotSharp"));
 
                 // Create unauthenticated GraphQL client (limited use)
-                graphQLClient = new InstallationAuthenticatedGraphQLClient(_httpClientFactory, string.Empty);
+                graphQLClient = new InstallationAuthenticatedGraphQLClient(this._httpClientFactory, string.Empty);
             }
 
             // Create the context
@@ -135,7 +140,7 @@ public sealed class ProbotSharpContextFactory : IProbotSharpContextFactory
                 isDryRun: isDryRun);
 
             // Run all configurators to attach services to the context
-            foreach (var configurator in _configurators)
+            foreach (var configurator in this._configurators)
             {
                 configurator.Configure(context);
             }
@@ -185,3 +190,5 @@ public sealed class ProbotSharpContextFactory : IProbotSharpContextFactory
         return new InstallationInfo(id.Value, account);
     }
 }
+
+#pragma warning restore CA1848

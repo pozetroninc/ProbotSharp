@@ -1,8 +1,11 @@
 // Copyright (c) ProbotSharp Contributors.
 // Licensed under the MIT License.
 
-using Microsoft.Extensions.Logging;
 using System.Text.Json;
+
+using Microsoft.Extensions.Logging;
+
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
 
 namespace ProbotSharp.Domain.Context;
 
@@ -12,6 +15,11 @@ namespace ProbotSharp.Domain.Context;
 /// </summary>
 public static class ProbotSharpContextDryRunExtensions
 {
+    private static readonly JsonSerializerOptions s_jsonOptions = new()
+    {
+        WriteIndented = false,
+    };
+
     /// <summary>
     /// Logs what would be executed in dry-run mode.
     /// This method only logs if the context is in dry-run mode.
@@ -35,10 +43,7 @@ public static class ProbotSharpContextDryRunExtensions
             {
                 try
                 {
-                    var paramJson = JsonSerializer.Serialize(parameters, new JsonSerializerOptions
-                    {
-                        WriteIndented = false,
-                    });
+                    var paramJson = JsonSerializer.Serialize(parameters, s_jsonOptions);
                     context.Logger.LogInformation("[DRY-RUN] Would execute: {Action} with parameters: {Parameters}",
                         action, paramJson);
                 }
@@ -161,3 +166,5 @@ public static class ProbotSharpContextDryRunExtensions
         }
     }
 }
+
+#pragma warning restore CA1848

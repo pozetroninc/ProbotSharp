@@ -40,6 +40,7 @@ public sealed class GraphQLResult<T>
     /// <summary>
     /// Creates a successful result.
     /// </summary>
+#pragma warning disable CA1000 // Static factory methods on generic types provide ergonomic result pattern API
     public static GraphQLResult<T> Success(T value) => new(value, true, null, null);
 
     /// <summary>
@@ -47,6 +48,7 @@ public sealed class GraphQLResult<T>
     /// </summary>
     public static GraphQLResult<T> Failure(string errorCode, string errorMessage) =>
         new(default, false, errorCode, errorMessage);
+#pragma warning restore CA1000
 }
 
 /// <summary>

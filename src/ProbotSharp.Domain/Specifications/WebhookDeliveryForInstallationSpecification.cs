@@ -17,15 +17,20 @@ public sealed class WebhookDeliveryForInstallationSpecification : Specification<
     /// <summary>
     /// Initializes a new instance for the specified installation.
     /// </summary>
-    /// <param name="installationId">The installation ID to match</param>
+    /// <param name="installationId">The installation ID to match.</param>
     public WebhookDeliveryForInstallationSpecification(InstallationId installationId)
     {
-        _installationId = installationId ?? throw new ArgumentNullException(nameof(installationId));
+        this._installationId = installationId ?? throw new ArgumentNullException(nameof(installationId));
     }
 
+    /// <summary>
+    /// Determines whether the specified webhook delivery is associated with the configured installation.
+    /// </summary>
+    /// <param name="candidate">The webhook delivery to evaluate.</param>
+    /// <returns>True if the delivery is for the installation; otherwise, false.</returns>
     public override bool IsSatisfiedBy(WebhookDelivery candidate)
     {
         ArgumentNullException.ThrowIfNull(candidate);
-        return candidate.InstallationId is not null && candidate.InstallationId.Equals(_installationId);
+        return candidate.InstallationId is not null && candidate.InstallationId.Equals(this._installationId);
     }
 }

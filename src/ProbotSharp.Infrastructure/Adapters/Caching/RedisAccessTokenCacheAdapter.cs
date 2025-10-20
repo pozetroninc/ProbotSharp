@@ -4,10 +4,10 @@
 using System.Globalization;
 using System.Text.Json;
 
-using StackExchange.Redis;
-
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Domain.ValueObjects;
+
+using StackExchange.Redis;
 
 namespace ProbotSharp.Infrastructure.Adapters.Caching;
 

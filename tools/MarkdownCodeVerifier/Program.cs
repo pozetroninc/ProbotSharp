@@ -1,11 +1,13 @@
 using System.Text;
 using System.Text.RegularExpressions;
+
 using Markdig;
 using Markdig.Syntax;
+
+using Microsoft.AspNetCore.Http;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.Configuration;
-using Microsoft.AspNetCore.Http;
 
 namespace MarkdownCodeVerifier;
 
@@ -38,6 +40,11 @@ public class Program
         "using ProbotSharp.Domain.Context;",
     ];
 
+    /// <summary>
+    /// Main entry point for the Markdown code verifier tool.
+    /// </summary>
+    /// <param name="args">Command line arguments: [root-path] [exclude-patterns] [--verbose].</param>
+    /// <returns>Exit code: 0 for success, 1 if any code blocks fail to compile.</returns>
     public static async Task<int> Main(string[] args)
     {
         var rootPath = args.Length > 0 ? args[0] : Directory.GetCurrentDirectory();
@@ -55,7 +62,7 @@ public class Program
         var codeBlocks = new List<(string FilePath, int LineNumber, string Code)>();
         foreach (var file in markdownFiles)
         {
-            var blocks = await ExtractCSharpCodeBlocksAsync(file);
+            var blocks = await ExtractCSharpCodeBlocksAsync(file).ConfigureAwait(false);
             codeBlocks.AddRange(blocks);
         }
 
@@ -131,7 +138,7 @@ public class Program
     private static async Task<List<(string FilePath, int LineNumber, string Code)>> ExtractCSharpCodeBlocksAsync(string filePath)
     {
         var blocks = new List<(string, int, string)>();
-        var content = await File.ReadAllTextAsync(filePath);
+        var content = await File.ReadAllTextAsync(filePath).ConfigureAwait(false);
         var lines = content.Split('\n');
 
         var pipeline = new MarkdownPipelineBuilder().Build();

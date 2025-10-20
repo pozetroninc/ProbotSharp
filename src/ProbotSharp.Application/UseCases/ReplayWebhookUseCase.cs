@@ -39,11 +39,11 @@ public sealed class ReplayWebhookUseCase : IReplayWebhookPort
         ArgumentNullException.ThrowIfNull(storage);
         ArgumentNullException.ThrowIfNull(logger);
 
-        _processingPort = processingPort;
-        _queue = queue;
-        _storage = storage;
-        _logger = logger;
-        _maxAttempts = maxAttempts > 0 ? maxAttempts : DefaultMaxAttempts;
+        this._processingPort = processingPort;
+        this._queue = queue;
+        this._storage = storage;
+        this._logger = logger;
+        this._maxAttempts = maxAttempts > 0 ? maxAttempts : DefaultMaxAttempts;
     }
 
     /// <inheritdoc />
@@ -54,25 +54,25 @@ public sealed class ReplayWebhookUseCase : IReplayWebhookPort
         var deliveryId = command.Command.DeliveryId;
         var attempt = command.Attempt;
 
-        using var scope = _logger.BeginScope(new Dictionary<string, object>
+        using var scope = this._logger.BeginScope(new Dictionary<string, object>
         {
             ["delivery_id"] = deliveryId.Value,
             ["attempt"] = attempt + 1,
-            ["max_attempts"] = _maxAttempts
+            ["max_attempts"] = this._maxAttempts
         });
 
-        _logger.LogInformation(
+        this._logger.LogInformation(
             "Processing replay for delivery {DeliveryId} (attempt {Attempt}/{MaxAttempts})",
             deliveryId.Value,
             attempt + 1,
-            _maxAttempts);
+            this._maxAttempts);
 
         // Step 1: Ensure we do not duplicate work if the delivery already exists.
-        var existingResult = await _storage.GetAsync(deliveryId, cancellationToken)
+        var existingResult = await this._storage.GetAsync(deliveryId, cancellationToken)
             .ConfigureAwait(false);
         if (!existingResult.IsSuccess)
         {
-            _logger.LogWarning(
+            this._logger.LogWarning(
                 "Failed to check existing delivery {DeliveryId}: {Error}",
                 deliveryId.Value,
                 existingResult.Error?.ToString() ?? "unknown error");
@@ -84,27 +84,27 @@ public sealed class ReplayWebhookUseCase : IReplayWebhookPort
 
         if (existingResult.Value is not null)
         {
-            _logger.LogInformation("Delivery {DeliveryId} already stored; skipping", deliveryId.Value);
+            this._logger.LogInformation("Delivery {DeliveryId} already stored; skipping", deliveryId.Value);
             return Result.Success();
         }
 
         // Step 2: Delegate to the primary processing use case.
-        var processResult = await _processingPort.ProcessAsync(command.Command, cancellationToken)
+        var processResult = await this._processingPort.ProcessAsync(command.Command, cancellationToken)
             .ConfigureAwait(false);
         if (processResult.IsSuccess)
         {
-            _logger.LogInformation("Replay succeeded for delivery {DeliveryId}", deliveryId.Value);
+            this._logger.LogInformation("Replay succeeded for delivery {DeliveryId}", deliveryId.Value);
             return Result.Success();
         }
 
         // Step 3: Manage retry scheduling.
-        if (attempt + 1 >= _maxAttempts)
+        if (attempt + 1 >= this._maxAttempts)
         {
-            _logger.LogError(
+            this._logger.LogError(
                 null,
                 "Replay failed for delivery {DeliveryId}; max attempts reached ({MaxAttempts}). Error: {Error}",
                 deliveryId.Value,
-                _maxAttempts,
+                this._maxAttempts,
                 processResult.Error?.ToString() ?? "unknown error");
 
             return processResult.Error is null
@@ -112,11 +112,11 @@ public sealed class ReplayWebhookUseCase : IReplayWebhookPort
                 : Result.Failure("replay_max_attempts", processResult.Error.Value.Message, processResult.Error.Value.Details);
         }
 
-        var requeueResult = await _queue.EnqueueAsync(command.NextAttempt(), cancellationToken)
+        var requeueResult = await this._queue.EnqueueAsync(command.NextAttempt(), cancellationToken)
             .ConfigureAwait(false);
         if (!requeueResult.IsSuccess)
         {
-            _logger.LogError(
+            this._logger.LogError(
                 null,
                 "Failed to re-enqueue delivery {DeliveryId}: {Error}",
                 deliveryId.Value,
@@ -127,15 +127,15 @@ public sealed class ReplayWebhookUseCase : IReplayWebhookPort
                 : Result.Failure(requeueResult.Error.Value);
         }
 
-        _logger.LogWarning(
+        this._logger.LogWarning(
             "Replay for delivery {DeliveryId} scheduled for retry (attempt {NextAttempt}/{MaxAttempts})",
             deliveryId.Value,
             attempt + 2,
-            _maxAttempts);
+            this._maxAttempts);
 
         return Result.Failure(
             "replay_retry_scheduled",
-            $"Replay scheduled to retry (attempt {attempt + 2} of {_maxAttempts}).",
+            $"Replay scheduled to retry (attempt {attempt + 2} of {this._maxAttempts}).",
             processResult.Error?.ToString());
     }
 }

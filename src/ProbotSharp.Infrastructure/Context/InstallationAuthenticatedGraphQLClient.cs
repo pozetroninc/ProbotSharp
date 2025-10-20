@@ -4,6 +4,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+
 using ProbotSharp.Domain.Contracts;
 
 namespace ProbotSharp.Infrastructure.Context;
@@ -31,12 +32,12 @@ internal sealed class InstallationAuthenticatedGraphQLClient : IGitHubGraphQlCli
     {
         ArgumentNullException.ThrowIfNull(httpClientFactory);
 
-        _httpClient = httpClientFactory.CreateClient("GitHubGraphQL");
+        this._httpClient = httpClientFactory.CreateClient("GitHubGraphQL");
 
         // Only set authorization header if token is provided
         if (!string.IsNullOrWhiteSpace(accessToken))
         {
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            this._httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         }
     }
 
@@ -61,7 +62,7 @@ internal sealed class InstallationAuthenticatedGraphQLClient : IGitHubGraphQlCli
                 Encoding.UTF8,
                 "application/json");
 
-            var response = await _httpClient.PostAsync(
+            var response = await this._httpClient.PostAsync(
                     new Uri("graphql", UriKind.Relative),
                     content,
                     cancellationToken)

@@ -9,11 +9,12 @@ using ProbotSharp.Shared.Abstractions;
 
 namespace ProbotSharp.Infrastructure.Tests.Adapters.Persistence;
 
-public sealed class EfUnitOfWorkTests
+public sealed class EfUnitOfWorkTests : IDisposable
 {
     private readonly ProbotSharpDbContext _dbContext;
     private readonly EfUnitOfWork _sut;
     private readonly ILogger<EfUnitOfWork> _logger = Substitute.For<ILogger<EfUnitOfWork>>();
+    private bool _disposed;
 
     public EfUnitOfWorkTests()
     {
@@ -23,6 +24,15 @@ public sealed class EfUnitOfWorkTests
 
         _dbContext = new ProbotSharpDbContext(options);
         _sut = new EfUnitOfWork(_dbContext, _logger);
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _dbContext?.Dispose();
+            _disposed = true;
+        }
     }
 
     [Fact]
@@ -45,4 +55,3 @@ public sealed class EfUnitOfWorkTests
         result.Error.Should().Be(failure.Error);
     }
 }
-

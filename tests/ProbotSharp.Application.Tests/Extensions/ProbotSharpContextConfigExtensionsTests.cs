@@ -2,9 +2,13 @@
 // Licensed under the MIT License.
 
 using Microsoft.Extensions.Logging;
+
 using Newtonsoft.Json.Linq;
+
 using NSubstitute;
+
 using Octokit;
+
 using ProbotSharp.Application.Extensions;
 using ProbotSharp.Application.Services;
 using ProbotSharp.Domain.Context;
@@ -37,7 +41,7 @@ public class ProbotSharpContextConfigExtensionsTests
         // Arrange
         var context = CreateContext();
         var contentPort = Substitute.For<ProbotSharp.Application.Ports.Outbound.IRepositoryContentPort>();
-        var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
             new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
         var logger = Substitute.For<ILogger<RepositoryConfigurationService>>();
 
@@ -89,7 +93,7 @@ public class ProbotSharpContextConfigExtensionsTests
         }");
         var context = CreateContext(payload);
         var contentPort = Substitute.For<ProbotSharp.Application.Ports.Outbound.IRepositoryContentPort>();
-        var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
             new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
         var logger = Substitute.For<ILogger<RepositoryConfigurationService>>();
 

@@ -9,10 +9,10 @@ namespace ProbotSharp.Domain.Commands;
 /// </summary>
 /// <example>
 /// For a comment line "/label bug, enhancement", this would parse to:
-/// - Name: "label"
-/// - Arguments: "bug, enhancement"
-/// - FullText: "/label bug, enhancement"
-/// - LineNumber: 1
+/// - Name: "label".
+/// - Arguments: "bug, enhancement".
+/// - FullText: "/label bug, enhancement".
+/// - LineNumber: 1.
 /// </example>
 public sealed class SlashCommand
 {

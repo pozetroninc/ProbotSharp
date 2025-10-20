@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+using ProbotSharp.Application.Abstractions;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Infrastructure.Adapters.Caching;
 using ProbotSharp.Infrastructure.Adapters.Configuration;
@@ -18,7 +19,6 @@ using ProbotSharp.Infrastructure.Adapters.Observability;
 using ProbotSharp.Infrastructure.Adapters.Persistence;
 using ProbotSharp.Infrastructure.Adapters.System;
 using ProbotSharp.Infrastructure.Adapters.Workers;
-using ProbotSharp.Application.Abstractions;
 using ProbotSharp.Infrastructure.Context;
 
 namespace ProbotSharp.Infrastructure.Extensions;

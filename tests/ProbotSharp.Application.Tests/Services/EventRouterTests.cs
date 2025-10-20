@@ -3,8 +3,11 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+
 using Newtonsoft.Json.Linq;
+
 using NSubstitute;
+
 using ProbotSharp.Application.Abstractions.Events;
 using ProbotSharp.Application.Services;
 using ProbotSharp.Domain.Context;
@@ -232,7 +235,7 @@ public class EventRouterTests
     {
         var sut = CreateSut();
         var handler = Substitute.For<IEventHandler>();
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
 
         handler.HandleAsync(Arg.Any<ProbotSharpContext>(), Arg.Any<CancellationToken>())
             .Returns<Task>(_ => throw new OperationCanceledException());
@@ -241,7 +244,7 @@ public class EventRouterTests
         _scopedServiceProvider.GetService(typeof(TestHandler)).Returns(handler);
 
         var context = CreateContext("issues", "opened");
-        cts.Cancel();
+        await cts.CancelAsync();
 
         var act = async () => await sut.RouteAsync(context, _serviceProvider, cts.Token);
 

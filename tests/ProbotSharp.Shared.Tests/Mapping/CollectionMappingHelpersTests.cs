@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using FluentAssertions;
+
 using ProbotSharp.Shared.DTOs;
 using ProbotSharp.Shared.Mapping;
+
 using Xunit;
 
 namespace ProbotSharp.Shared.Tests.Mapping;
@@ -548,10 +550,10 @@ public sealed class CollectionMappingHelpersTests
     public async Task ToListAsync_WithCancellationToken_ShouldRespectCancellation()
     {
         // Arrange
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var source = CreateAsyncEnumerableWithDelay(new[] { 1, 2, 3 });
 
-        cts.Cancel();
+        await cts.CancelAsync();
 
         // Act & Assert
         var act = async () => await source.ToListAsync(cts.Token);

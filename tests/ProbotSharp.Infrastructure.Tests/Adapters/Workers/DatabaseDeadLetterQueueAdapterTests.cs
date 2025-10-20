@@ -3,7 +3,9 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+
 using NSubstitute;
+
 using ProbotSharp.Application.Models;
 using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Infrastructure.Adapters.Persistence;
@@ -65,6 +67,3 @@ public sealed class DatabaseDeadLetterQueueAdapterTests
             "{\"ok\":true}"),
             attempt);
 }
-
-
-

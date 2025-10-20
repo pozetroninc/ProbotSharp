@@ -4,6 +4,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+
 using ProbotSharp.Infrastructure.Configuration;
 using ProbotSharp.Infrastructure.Extensions;
 
@@ -42,6 +43,3 @@ public sealed class AdapterServiceCollectionExtensionsTests
         options.Value.Persistence.Provider.Should().Be(PersistenceProvider.InMemory);
     }
 }
-
-
-

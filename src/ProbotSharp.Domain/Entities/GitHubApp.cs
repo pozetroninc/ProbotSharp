@@ -9,6 +9,9 @@ using ProbotSharp.Domain.ValueObjects;
 
 namespace ProbotSharp.Domain.Entities;
 
+/// <summary>
+/// Represents a GitHub App entity.
+/// </summary>
 public sealed class GitHubApp : AggregateRoot<GitHubAppId>
 {
     private readonly List<Installation> _installations = new();
@@ -25,14 +28,34 @@ public sealed class GitHubApp : AggregateRoot<GitHubAppId>
         this.WebhookSecret = webhookSecret;
     }
 
+    /// <summary>
+    /// Gets the name of the GitHub App.
+    /// </summary>
     public string Name { get; private set; }
 
+    /// <summary>
+    /// Gets the private key used for authentication.
+    /// </summary>
     public PrivateKeyPem PrivateKey { get; private set; }
 
+    /// <summary>
+    /// Gets the webhook secret used for signature validation.
+    /// </summary>
     public string WebhookSecret { get; private set; }
 
+    /// <summary>
+    /// Gets the collection of installations for this app.
+    /// </summary>
     public IReadOnlyCollection<Installation> Installations => this._installations.AsReadOnly();
 
+    /// <summary>
+    /// Creates a new GitHub App instance.
+    /// </summary>
+    /// <param name="id">The GitHub App ID.</param>
+    /// <param name="name">The name of the app.</param>
+    /// <param name="privateKey">The private key for authentication.</param>
+    /// <param name="webhookSecret">The webhook secret for signature validation.</param>
+    /// <returns>A new GitHub App instance.</returns>
     public static GitHubApp Create(
         GitHubAppId id,
         string name,
@@ -54,6 +77,15 @@ public sealed class GitHubApp : AggregateRoot<GitHubAppId>
         return app;
     }
 
+    /// <summary>
+    /// Restores a GitHub App instance from persistence.
+    /// </summary>
+    /// <param name="id">The GitHub App ID.</param>
+    /// <param name="name">The name of the app.</param>
+    /// <param name="privateKey">The private key for authentication.</param>
+    /// <param name="webhookSecret">The webhook secret for signature validation.</param>
+    /// <param name="installations">The collection of installations.</param>
+    /// <returns>A restored GitHub App instance.</returns>
     internal static GitHubApp Restore(
         GitHubAppId id,
         string name,
@@ -72,6 +104,12 @@ public sealed class GitHubApp : AggregateRoot<GitHubAppId>
         return app;
     }
 
+    /// <summary>
+    /// Adds a new installation to this GitHub App.
+    /// </summary>
+    /// <param name="installationId">The installation ID.</param>
+    /// <param name="accountLogin">The account login.</param>
+    /// <returns>The newly created installation.</returns>
     public Installation AddInstallation(InstallationId installationId, string accountLogin)
     {
         if (this._installations.Any(i => i.Id == installationId))
@@ -86,6 +124,10 @@ public sealed class GitHubApp : AggregateRoot<GitHubAppId>
         return installation;
     }
 
+    /// <summary>
+    /// Removes an installation from this GitHub App.
+    /// </summary>
+    /// <param name="installationId">The installation ID to remove.</param>
     public void RemoveInstallation(InstallationId installationId)
     {
         var installation = this._installations.SingleOrDefault(i => i.Id == installationId);
@@ -97,11 +139,19 @@ public sealed class GitHubApp : AggregateRoot<GitHubAppId>
         this._installations.Remove(installation);
     }
 
+    /// <summary>
+    /// Updates the private key for this GitHub App.
+    /// </summary>
+    /// <param name="privateKey">The new private key.</param>
     public void UpdatePrivateKey(PrivateKeyPem privateKey)
     {
         this.PrivateKey = privateKey;
     }
 
+    /// <summary>
+    /// Updates the webhook secret for this GitHub App.
+    /// </summary>
+    /// <param name="webhookSecret">The new webhook secret.</param>
     public void UpdateWebhookSecret(string webhookSecret)
     {
         if (string.IsNullOrWhiteSpace(webhookSecret))
@@ -112,6 +162,10 @@ public sealed class GitHubApp : AggregateRoot<GitHubAppId>
         this.WebhookSecret = webhookSecret.Trim();
     }
 
+    /// <summary>
+    /// Renames this GitHub App.
+    /// </summary>
+    /// <param name="name">The new name.</param>
     public void Rename(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -122,4 +176,3 @@ public sealed class GitHubApp : AggregateRoot<GitHubAppId>
         this.Name = name.Trim();
     }
 }
-

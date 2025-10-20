@@ -97,4 +97,3 @@ public sealed partial class GitHubOAuthClient : IGitHubOAuthPort
         [property: JsonPropertyName("token")] string Token,
         [property: JsonPropertyName("expires_at")] DateTimeOffset ExpiresAt);
 }
-

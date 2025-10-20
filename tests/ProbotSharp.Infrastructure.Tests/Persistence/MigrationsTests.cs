@@ -3,6 +3,7 @@
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+
 using ProbotSharp.Infrastructure.Adapters.Persistence;
 
 namespace ProbotSharp.Infrastructure.Tests.Persistence;
@@ -27,6 +28,3 @@ public sealed class MigrationsTests
         ctx.Model.FindEntityType(typeof(ProbotSharp.Infrastructure.Adapters.Persistence.Models.DeadLetterQueueItemEntity)).Should().NotBeNull();
     }
 }
-
-
-

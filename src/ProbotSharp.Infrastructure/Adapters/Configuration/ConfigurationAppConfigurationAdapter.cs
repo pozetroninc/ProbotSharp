@@ -44,4 +44,3 @@ public sealed class ConfigurationAppConfigurationAdapter : IAppConfigurationPort
         return Task.FromResult(Result<string>.Success(secret));
     }
 }
-

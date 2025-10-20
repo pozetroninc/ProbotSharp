@@ -126,7 +126,7 @@ public sealed class WebhookReplayWorkerTests
         _replayPort.ReplayAsync(Arg.Any<EnqueueReplayCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
+        using var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
 
         // Act
         await worker.StartAsync(default);
@@ -155,7 +155,7 @@ public sealed class WebhookReplayWorkerTests
         _replayPort.ReplayAsync(Arg.Any<EnqueueReplayCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
+        using var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
 
         // Act
         await worker.StartAsync(default);
@@ -191,7 +191,7 @@ public sealed class WebhookReplayWorkerTests
         _queuePort.EnqueueAsync(Arg.Any<EnqueueReplayCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
+        using var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
 
         // Act
         await worker.StartAsync(default);
@@ -221,7 +221,7 @@ public sealed class WebhookReplayWorkerTests
         _queuePort.EnqueueAsync(Arg.Any<EnqueueReplayCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
+        using var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
 
         // Act
         await worker.StartAsync(default);
@@ -250,7 +250,7 @@ public sealed class WebhookReplayWorkerTests
         _replayPort.ReplayAsync(Arg.Any<EnqueueReplayCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
+        using var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
         var startTime = DateTime.UtcNow;
 
         // Act
@@ -289,7 +289,7 @@ public sealed class WebhookReplayWorkerTests
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
+        using var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
 
         // Act
         await worker.StartAsync(default);
@@ -324,7 +324,7 @@ public sealed class WebhookReplayWorkerTests
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
+        using var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
 
         // Act
         await worker.StartAsync(default);
@@ -360,7 +360,7 @@ public sealed class WebhookReplayWorkerTests
         _queuePort.EnqueueAsync(Arg.Any<EnqueueReplayCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
+        using var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
 
         // Act
         await worker.StartAsync(default);
@@ -390,7 +390,7 @@ public sealed class WebhookReplayWorkerTests
         _queuePort.EnqueueAsync(Arg.Any<EnqueueReplayCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
+        using var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
 
         // Act
         await worker.StartAsync(default);
@@ -416,7 +416,7 @@ public sealed class WebhookReplayWorkerTests
         _queuePort.DequeueAsync(Arg.Any<CancellationToken>())
             .Returns(Result<EnqueueReplayCommand?>.Success(null));
 
-        var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
+        using var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
 
         // Act
         await worker.StartAsync(default);
@@ -457,7 +457,7 @@ public sealed class WebhookReplayWorkerTests
         _queuePort.EnqueueAsync(Arg.Any<EnqueueReplayCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
+        using var worker = new WebhookReplayWorker(_logger, _scopeFactory, Options.Create(_options));
 
         // Act
         await worker.StartAsync(default);

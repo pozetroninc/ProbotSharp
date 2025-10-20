@@ -25,4 +25,5 @@ echo
 # Run verifier
 # Exclude: .aidocs/ (internal AI documentation and plans), TEST-MARKDOWN-VERIFIER.md (test file)
 #          CLAUDE.md (AI instructions), TestingStrategy.md (test pattern examples)
-dotnet run --project tools/MarkdownCodeVerifier --configuration Release --no-build -- "$REPO_ROOT" ".aidocs/,TEST-MARKDOWN-VERIFIER.md,CLAUDE.md,TestingStrategy.md" "$@"
+#          .worktrees/ (git worktrees for parallel development)
+dotnet run --project tools/MarkdownCodeVerifier --configuration Release --no-build -- "$REPO_ROOT" ".aidocs/,TEST-MARKDOWN-VERIFIER.md,CLAUDE.md,TestingStrategy.md,.worktrees/" "$@"

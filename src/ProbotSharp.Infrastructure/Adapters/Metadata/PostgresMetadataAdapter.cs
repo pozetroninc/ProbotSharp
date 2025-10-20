@@ -22,7 +22,7 @@ public sealed class PostgresMetadataAdapter : IMetadataPort
     /// <param name="dbContext">The database context.</param>
     public PostgresMetadataAdapter(ProbotSharpDbContext dbContext)
     {
-        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        this._dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
     /// <inheritdoc />
@@ -32,13 +32,13 @@ public sealed class PostgresMetadataAdapter : IMetadataPort
         ArgumentException.ThrowIfNullOrWhiteSpace(repo);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        return await _dbContext.IssueMetadata
+        return await this._dbContext.IssueMetadata
             .Where(m => m.RepositoryOwner == owner
                 && m.RepositoryName == repo
                 && m.IssueNumber == issueNumber
                 && m.Key == key)
             .Select(m => m.Value)
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -49,11 +49,11 @@ public sealed class PostgresMetadataAdapter : IMetadataPort
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         ArgumentNullException.ThrowIfNull(value);
 
-        var metadata = await _dbContext.IssueMetadata
+        var metadata = await this._dbContext.IssueMetadata
             .FirstOrDefaultAsync(m => m.RepositoryOwner == owner
                 && m.RepositoryName == repo
                 && m.IssueNumber == issueNumber
-                && m.Key == key, ct);
+                && m.Key == key, ct).ConfigureAwait(false);
 
         if (metadata == null)
         {
@@ -68,7 +68,7 @@ public sealed class PostgresMetadataAdapter : IMetadataPort
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow
             };
-            _dbContext.IssueMetadata.Add(metadata);
+            this._dbContext.IssueMetadata.Add(metadata);
         }
         else
         {
@@ -77,7 +77,7 @@ public sealed class PostgresMetadataAdapter : IMetadataPort
             metadata.UpdatedAt = DateTimeOffset.UtcNow;
         }
 
-        await _dbContext.SaveChangesAsync(ct);
+        await this._dbContext.SaveChangesAsync(ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -87,11 +87,11 @@ public sealed class PostgresMetadataAdapter : IMetadataPort
         ArgumentException.ThrowIfNullOrWhiteSpace(repo);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        return await _dbContext.IssueMetadata
+        return await this._dbContext.IssueMetadata
             .AnyAsync(m => m.RepositoryOwner == owner
                 && m.RepositoryName == repo
                 && m.IssueNumber == issueNumber
-                && m.Key == key, ct);
+                && m.Key == key, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -101,16 +101,16 @@ public sealed class PostgresMetadataAdapter : IMetadataPort
         ArgumentException.ThrowIfNullOrWhiteSpace(repo);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        var metadata = await _dbContext.IssueMetadata
+        var metadata = await this._dbContext.IssueMetadata
             .FirstOrDefaultAsync(m => m.RepositoryOwner == owner
                 && m.RepositoryName == repo
                 && m.IssueNumber == issueNumber
-                && m.Key == key, ct);
+                && m.Key == key, ct).ConfigureAwait(false);
 
         if (metadata != null)
         {
-            _dbContext.IssueMetadata.Remove(metadata);
-            await _dbContext.SaveChangesAsync(ct);
+            this._dbContext.IssueMetadata.Remove(metadata);
+            await this._dbContext.SaveChangesAsync(ct).ConfigureAwait(false);
         }
     }
 
@@ -120,11 +120,11 @@ public sealed class PostgresMetadataAdapter : IMetadataPort
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
         ArgumentException.ThrowIfNullOrWhiteSpace(repo);
 
-        var metadataList = await _dbContext.IssueMetadata
+        var metadataList = await this._dbContext.IssueMetadata
             .Where(m => m.RepositoryOwner == owner
                 && m.RepositoryName == repo
                 && m.IssueNumber == issueNumber)
-            .ToDictionaryAsync(m => m.Key, m => m.Value, ct);
+            .ToDictionaryAsync(m => m.Key, m => m.Value, ct).ConfigureAwait(false);
 
         return metadataList;
     }

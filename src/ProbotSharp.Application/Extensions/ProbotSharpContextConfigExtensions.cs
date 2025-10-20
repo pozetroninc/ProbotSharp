@@ -1,7 +1,10 @@
 using Microsoft.Extensions.Logging;
+
 using ProbotSharp.Application.Services;
 using ProbotSharp.Domain.Context;
 using ProbotSharp.Domain.Models;
+
+#pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
 
 namespace ProbotSharp.Application.Extensions;
 
@@ -241,3 +244,5 @@ public static class ProbotSharpContextConfigExtensions
         }
     }
 }
+
+#pragma warning restore CA1848

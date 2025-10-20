@@ -68,9 +68,14 @@ public sealed class FileSystemDeadLetterQueueAdapter : IDeadLetterQueuePort
                 LastError: null);
 
             var payload = DeadLetterQueueItem.FromDeadLetterItem(deadLetterItem);
-            await using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            try
             {
                 await JsonSerializer.SerializeAsync(stream, payload, SerializerOptions, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                await stream.DisposeAsync().ConfigureAwait(false);
             }
 
             DeadLetterLogMessages.DeadLetterItemCreated(this._logger, command.Command.DeliveryId.Value, id, reason);
@@ -113,7 +118,7 @@ public sealed class FileSystemDeadLetterQueueAdapter : IDeadLetterQueuePort
 
             foreach (var file in files)
             {
-                var itemResult = await ReadDeadLetterItemAsync(file, cancellationToken).ConfigureAwait(false);
+                var itemResult = await this.ReadDeadLetterItemAsync(file, cancellationToken).ConfigureAwait(false);
                 if (itemResult.IsSuccess && itemResult.Value is not null)
                 {
                     items.Add(itemResult.Value);
@@ -156,7 +161,7 @@ public sealed class FileSystemDeadLetterQueueAdapter : IDeadLetterQueuePort
                 return Result<DeadLetterItem?>.Success(null);
             }
 
-            return await ReadDeadLetterItemAsync(filePath, cancellationToken).ConfigureAwait(false);
+            return await this.ReadDeadLetterItemAsync(filePath, cancellationToken).ConfigureAwait(false);
         }
         catch (IOException ex)
         {
@@ -182,7 +187,7 @@ public sealed class FileSystemDeadLetterQueueAdapter : IDeadLetterQueuePort
 
         try
         {
-            var itemResult = await GetByIdAsync(id, cancellationToken).ConfigureAwait(false);
+            var itemResult = await this.GetByIdAsync(id, cancellationToken).ConfigureAwait(false);
             if (!itemResult.IsSuccess)
             {
                 return Result<EnqueueReplayCommand?>.Failure(itemResult.Error!.Value);
@@ -265,9 +270,14 @@ public sealed class FileSystemDeadLetterQueueAdapter : IDeadLetterQueuePort
         try
         {
             DeadLetterQueueItem? item;
-            await using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            try
             {
                 item = await JsonSerializer.DeserializeAsync<DeadLetterQueueItem>(stream, SerializerOptions, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                await stream.DisposeAsync().ConfigureAwait(false);
             }
 
             if (item is null)

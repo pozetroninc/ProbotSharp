@@ -236,4 +236,3 @@ public sealed class CliCommandServiceTests
         result.Value.Should().Contain("Unknown command");
     }
 }
-

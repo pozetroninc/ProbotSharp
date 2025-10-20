@@ -18,7 +18,7 @@ using ProbotSharp.Shared.Abstractions;
 
 namespace ProbotSharp.Infrastructure.Tests.Adapters.GitHub;
 
-public class GitHubOAuthClientTests
+public class GitHubOAuthClientTests : IDisposable
 {
     private readonly IHttpClientFactory _httpClientFactory = Substitute.For<IHttpClientFactory>();
     private readonly IAccessTokenCachePort _cache = Substitute.For<IAccessTokenCachePort>();
@@ -26,6 +26,7 @@ public class GitHubOAuthClientTests
     private readonly GitHubOAuthClient _sut;
     private readonly HttpClient _client;
     private readonly HttpMessageHandler _handler;
+    private bool _disposed;
 
     public GitHubOAuthClientTests()
     {
@@ -40,6 +41,16 @@ public class GitHubOAuthClientTests
         _httpClientFactory.CreateClient("GitHubOAuth").Returns(_client);
         _httpClientFactory.CreateClient("GitHubRest").Returns(_client);
         _sut = new GitHubOAuthClient(_httpClientFactory, _cache, _logger);
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _client?.Dispose();
+            _handler?.Dispose();
+            _disposed = true;
+        }
     }
 
     [Fact]
@@ -185,4 +196,3 @@ public class GitHubOAuthClientTests
         }
     }
 }
-
