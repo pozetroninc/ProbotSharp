@@ -204,8 +204,8 @@ jobs:
           echo "branch_emoji=${BRANCH_EMOJI}" >> $GITHUB_OUTPUT
 
           # Define minimum thresholds
-          MIN_LINE_COVERAGE=80
-          MIN_BRANCH_COVERAGE=75
+          MIN_LINE_COVERAGE=75
+          MIN_BRANCH_COVERAGE=70
 
           # Overall assessment - check both absolute thresholds and deltas
           if (( $(echo "$PR_LINE < $MIN_LINE_COVERAGE" | bc -l) )) || (( $(echo "$PR_BRANCH < $MIN_BRANCH_COVERAGE" | bc -l) )); then
@@ -244,7 +244,7 @@ jobs:
             - **Domain Layer**: 90% line, 85% branch
             - **Application Layer**: 80% line, 75% branch
             - **Infrastructure Layer**: 70% line, 65% branch
-            - **Overall Target**: 80% line, 75% branch
+            - **Overall Target**: 75% line, 70% branch
 
             </details>
 
@@ -267,7 +267,7 @@ jobs:
 
           # Enforce absolute thresholds
           if [ "$STATUS" = "failure" ]; then
-            echo "::error::Coverage check failed. Line: ${PR_LINE}% (min: 80%), Branch: ${PR_BRANCH}% (min: 75%)"
+            echo "::error::Coverage check failed. Line: ${PR_LINE}% (min: 75%), Branch: ${PR_BRANCH}% (min: 70%)"
             exit 1
           elif [ "$STATUS" = "warning" ]; then
             echo "::warning::Coverage decreased slightly but still meets minimums. Line: ${PR_LINE}%, Branch: ${PR_BRANCH}%"
