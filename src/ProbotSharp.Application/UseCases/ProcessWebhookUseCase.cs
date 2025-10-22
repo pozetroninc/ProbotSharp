@@ -325,4 +325,47 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
 
         return Result<VerifiedUniqueWebhook>.Success(new VerifiedUniqueWebhook(validated));
     }
+
+    /// <summary>
+    /// Step 3: Persist webhook delivery.
+    /// VerifiedUniqueWebhook → PersistedWebhook.
+    /// </summary>
+    /// <param name="unique">The verified unique webhook.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>PersistedWebhook if persistence succeeds, otherwise failure.</returns>
+    private async Task<Result<PersistedWebhook>> PersistDeliveryAsync(
+        VerifiedUniqueWebhook unique,
+        CancellationToken cancellationToken)
+    {
+        var command = unique.Command;
+
+        WebhookDelivery delivery;
+        try
+        {
+            delivery = WebhookDelivery.Create(
+                command.DeliveryId,
+                command.EventName,
+                this._clock.UtcNow,
+                command.Payload,
+                command.InstallationId);
+        }
+        catch (ArgumentException ex)
+        {
+            return Result<PersistedWebhook>.Failure(
+                new Error(
+                    "webhook_delivery_creation_failed",
+                    $"Failed to create webhook delivery entity: {ex.Message}"));
+        }
+
+        var saveResult = await this._storage.SaveAsync(delivery, cancellationToken).ConfigureAwait(false);
+        if (!saveResult.IsSuccess)
+        {
+            return Result<PersistedWebhook>.Failure(
+                saveResult.Error ?? new Error(
+                    "storage_write_failed",
+                    "Unable to save webhook delivery"));
+        }
+
+        return Result<PersistedWebhook>.Success(new PersistedWebhook(unique, delivery));
+    }
 }

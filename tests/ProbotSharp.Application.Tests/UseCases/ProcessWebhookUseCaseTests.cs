@@ -390,4 +390,81 @@ public class ProcessWebhookUseCaseTests
         result.Error!.Value.Code.Should().Be("webhook_duplicate_delivery");
         result.Error!.Value.Message.Should().Contain(command.DeliveryId.Value);
     }
+
+    [Fact]
+    public async Task PersistDeliveryAsync_WithValidDelivery_ShouldReturnPersistedWebhook()
+    {
+        // Arrange
+        var command = CreateCommand();
+        var untrusted = new UntrustedWebhook(command);
+        var validated = new ValidatedWebhook(untrusted);
+        var unique = new VerifiedUniqueWebhook(validated);
+
+        _clock.UtcNow.Returns(DateTimeOffset.UtcNow);
+        _storage.SaveAsync(Arg.Any<WebhookDelivery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        var useCase = CreateSut();
+
+        // Use reflection to access private method
+        var method = typeof(ProcessWebhookUseCase).GetMethod(
+            "PersistDeliveryAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        // Act
+        var resultTask = method!.Invoke(useCase, new object[] { unique, CancellationToken.None });
+        var result = await (Task<Result<PersistedWebhook>>)resultTask!;
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
+        result.Value!.Command.Should().Be(command);
+        result.Value!.Delivery.Should().NotBeNull();
+        result.Value!.Delivery.Id.Should().Be(command.DeliveryId);
+
+        await _storage.Received(1).SaveAsync(
+            Arg.Any<WebhookDelivery>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PersistDeliveryAsync_WhenDeliveryCreationFails_ShouldReturnFailure()
+    {
+        // Arrange - Create command with valid signature but will fail WebhookDelivery.Create
+        var command = new ProcessWebhookCommand(
+            DeliveryId: DeliveryId.Create("test-123"),
+            EventName: WebhookEventName.Create("issues"),
+            Payload: WebhookPayload.Create("{}"),
+            InstallationId: InstallationId.Create(123),
+            Signature: WebhookSignature.Create("sha256=" + new string('a', 64)),
+            RawPayload: "{}");
+
+        var untrusted = new UntrustedWebhook(command);
+        var validated = new ValidatedWebhook(untrusted);
+        var unique = new VerifiedUniqueWebhook(validated);
+
+        // Set clock to return default DateTime which will fail WebhookDelivery.Create validation
+        _clock.UtcNow.Returns(default(DateTimeOffset));
+
+        var useCase = CreateSut();
+
+        // Use reflection to access private method
+        var method = typeof(ProcessWebhookUseCase).GetMethod(
+            "PersistDeliveryAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        // Act
+        var resultTask = method!.Invoke(useCase, new object[] { unique, CancellationToken.None });
+        var result = await (Task<Result<PersistedWebhook>>)resultTask!;
+
+        // Assert - Should return failure Result, not throw
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Should().NotBeNull();
+        result.Error!.Value.Code.Should().Be("webhook_delivery_creation_failed");
+        result.Error!.Value.Message.Should().Contain("DeliveredAt");
+
+        await _storage.DidNotReceive().SaveAsync(
+            Arg.Any<WebhookDelivery>(),
+            Arg.Any<CancellationToken>());
+    }
 }
