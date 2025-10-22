@@ -398,16 +398,28 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
     {
         var delivery = persisted.Delivery;
 
+        // Add tracing event for routing lifecycle
+        this._tracing.AddEvent("webhook.route_to_handlers.start");
+
         try
         {
             var context = await this._contextFactory.CreateAsync(delivery, cancellationToken).ConfigureAwait(false);
             await this._eventRouter.RouteAsync(context, this._serviceProvider, cancellationToken).ConfigureAwait(false);
+
+            this._tracing.AddEvent("webhook.route_to_handlers.completed");
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // Note: Handler failures should not cause webhook processing to fail
             // The webhook has been successfully persisted at this point
-            // Exceptions are logged by the tracing and metrics infrastructure
+            this._tracing.AddEvent("webhook.route_to_handlers.error");
+            this._metrics.IncrementCounter(
+                "webhook.routing_error",
+                1,
+                [
+                    new("event", delivery.EventName.Value),
+                    new("exception_type", ex.GetType().Name),
+                ]);
         }
 
         return Result<PersistedWebhook>.Success(persisted);

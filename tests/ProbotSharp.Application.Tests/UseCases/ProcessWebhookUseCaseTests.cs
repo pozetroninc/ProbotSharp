@@ -7,9 +7,12 @@ using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+using Newtonsoft.Json.Linq;
+
 using NSubstitute;
 
 using ProbotSharp.Application.Abstractions;
+using ProbotSharp.Domain.Contracts;
 using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Application.Services;
@@ -492,6 +495,25 @@ public class ProcessWebhookUseCaseTests
         var unique = new VerifiedUniqueWebhook(validated);
         var persisted = new PersistedWebhook(unique, delivery);
 
+        // Create a real context using mocks for dependencies
+        var mockLogger = Substitute.For<ILogger>();
+        var mockGitHubClient = Substitute.For<Octokit.IGitHubClient>();
+        var mockGraphQLClient = Substitute.For<ProbotSharp.Domain.Contracts.IGitHubGraphQlClient>();
+        var context = new ProbotSharp.Domain.Context.ProbotSharpContext(
+            delivery.Id.Value,
+            delivery.EventName.Value,
+            null,
+            JObject.Parse(delivery.Payload.RawBody),
+            mockLogger,
+            mockGitHubClient,
+            mockGraphQLClient,
+            null,
+            null,
+            false);
+
+        _contextFactory.CreateAsync(Arg.Any<WebhookDelivery>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(context));
+
         var useCase = CreateSut();
 
         // Use reflection to access private method
@@ -510,6 +532,54 @@ public class ProcessWebhookUseCaseTests
         await _contextFactory.Received(1).CreateAsync(
             Arg.Is<WebhookDelivery>(d => d.Id == command.DeliveryId),
             Arg.Any<CancellationToken>());
+
+        _tracing.Received(1).AddEvent("webhook.route_to_handlers.start");
+        _tracing.Received(1).AddEvent("webhook.route_to_handlers.completed");
+    }
+
+    [Fact]
+    public async Task RouteToHandlersAsync_WhenRoutingThrowsException_ShouldStillReturnSuccessAndRecordMetrics()
+    {
+        // Arrange
+        var command = CreateCommand();
+        var delivery = CreateWebhookDelivery(command);
+        var untrusted = new UntrustedWebhook(command);
+        var validated = new ValidatedWebhook(untrusted);
+        var unique = new VerifiedUniqueWebhook(validated);
+        var persisted = new PersistedWebhook(unique, delivery);
+
+        // Make context factory throw an exception to simulate routing error
+        var expectedException = new InvalidOperationException("Handler failed");
+        _contextFactory.CreateAsync(Arg.Any<WebhookDelivery>(), Arg.Any<CancellationToken>())
+            .Returns<Task<ProbotSharp.Domain.Context.ProbotSharpContext>>(_ => throw expectedException);
+
+        var useCase = CreateSut();
+
+        // Use reflection to access private method
+        var method = typeof(ProcessWebhookUseCase).GetMethod(
+            "RouteToHandlersAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        // Act
+        var resultTask = method!.Invoke(useCase, new object[] { persisted, CancellationToken.None });
+        var result = await (Task<Result<PersistedWebhook>>)resultTask!;
+
+        // Assert - should still return success because webhook was persisted
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(persisted);
+
+        await _contextFactory.Received(1).CreateAsync(
+            Arg.Is<WebhookDelivery>(d => d.Id == command.DeliveryId),
+            Arg.Any<CancellationToken>());
+
+        _tracing.Received(1).AddEvent("webhook.route_to_handlers.start");
+        _tracing.Received(1).AddEvent("webhook.route_to_handlers.error");
+        _metrics.Received(1).IncrementCounter(
+            "webhook.routing_error",
+            1,
+            Arg.Is<KeyValuePair<string, object?>[]>(tags =>
+                tags.Any(t => t.Key == "event" && t.Value!.ToString() == command.EventName.Value) &&
+                tags.Any(t => t.Key == "exception_type" && t.Value!.ToString() == "InvalidOperationException")));
     }
 
     private WebhookDelivery CreateWebhookDelivery(ProcessWebhookCommand command)
