@@ -11,6 +11,7 @@ using ProbotSharp.Application.Services;
 using ProbotSharp.Application.WorkflowStates;
 using ProbotSharp.Domain.Entities;
 using ProbotSharp.Domain.Services;
+using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Shared.Abstractions;
 
 namespace ProbotSharp.Application.UseCases;
@@ -23,6 +24,7 @@ namespace ProbotSharp.Application.UseCases;
 public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
 {
     private readonly IWebhookStoragePort _storage;
+    private readonly IIdempotencyPort _idempotency;
     private readonly IClockPort _clock;
     private readonly IUnitOfWorkPort _unitOfWork;
     private readonly IAppConfigurationPort _appConfig;
@@ -37,6 +39,7 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
     /// Initializes a new instance of the <see cref="ProcessWebhookUseCase"/> class.
     /// </summary>
     /// <param name="storage">The webhook storage port for persisting deliveries.</param>
+    /// <param name="idempotency">The idempotency port for distributed locking.</param>
     /// <param name="clock">The clock port for timestamp generation.</param>
     /// <param name="unitOfWork">The unit of work port for transaction management.</param>
     /// <param name="appConfig">The application configuration port for retrieving webhook secret.</param>
@@ -48,6 +51,7 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
     /// <param name="serviceProvider">The service provider for dependency resolution.</param>
     public ProcessWebhookUseCase(
         IWebhookStoragePort storage,
+        IIdempotencyPort idempotency,
         IClockPort clock,
         IUnitOfWorkPort unitOfWork,
         IAppConfigurationPort appConfig,
@@ -59,6 +63,7 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
         IServiceProvider serviceProvider)
     {
         this._storage = storage;
+        this._idempotency = idempotency;
         this._clock = clock;
         this._unitOfWork = unitOfWork;
         this._appConfig = appConfig;
@@ -365,6 +370,17 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
                     "storage_write_failed",
                     "Unable to save webhook delivery"));
         }
+
+        // Mark delivery as processed in idempotency system for distributed duplicate prevention
+        var idempotencyKey = IdempotencyKey.FromDeliveryId(command.DeliveryId);
+        var acquired = await this._idempotency.TryAcquireAsync(
+            idempotencyKey,
+            timeToLive: TimeSpan.FromHours(24),
+            cancellationToken).ConfigureAwait(false);
+
+        // Note: We don't fail if idempotency key acquisition fails since the delivery
+        // has already been persisted. The storage check will prevent true duplicates.
+        // This is a defense-in-depth mechanism for distributed scenarios.
 
         return Result<PersistedWebhook>.Success(new PersistedWebhook(unique, delivery));
     }

@@ -25,6 +25,7 @@ namespace ProbotSharp.Application.Tests.UseCases;
 public class ProcessWebhookUseCaseTests
 {
     private readonly IWebhookStoragePort _storage = Substitute.For<IWebhookStoragePort>();
+    private readonly IIdempotencyPort _idempotency = Substitute.For<IIdempotencyPort>();
     private readonly IClockPort _clock = Substitute.For<IClockPort>();
     private readonly IUnitOfWorkPort _unitOfWork = Substitute.For<IUnitOfWorkPort>();
     private readonly IAppConfigurationPort _appConfig = Substitute.For<IAppConfigurationPort>();
@@ -46,7 +47,7 @@ public class ProcessWebhookUseCaseTests
     }
 
     private ProcessWebhookUseCase CreateSut()
-        => new(_storage, _clock, _unitOfWork, _appConfig, _signatureValidator, _tracing, _metrics, _contextFactory, _eventRouter, _serviceProvider);
+        => new(_storage, _idempotency, _clock, _unitOfWork, _appConfig, _signatureValidator, _tracing, _metrics, _contextFactory, _eventRouter, _serviceProvider);
 
     [Fact]
     public async Task ProcessAsync_WhenDeliveryExists_ShouldReturnSuccessWithoutSaving()
@@ -181,6 +182,8 @@ public class ProcessWebhookUseCaseTests
             .Returns(Task.FromResult(Result<WebhookDelivery?>.Success(null)));
         _storage.SaveAsync(Arg.Any<WebhookDelivery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
+        _idempotency.TryAcquireAsync(Arg.Any<IdempotencyKey>(), Arg.Any<TimeSpan?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(true));
         _clock.UtcNow.Returns(DateTimeOffset.UtcNow);
 
         var result = await CreateSut().ProcessAsync(command);
@@ -254,6 +257,8 @@ public class ProcessWebhookUseCaseTests
             .Returns(Task.FromResult(Result<WebhookDelivery?>.Success(null)));
         _storage.SaveAsync(Arg.Any<WebhookDelivery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
+        _idempotency.TryAcquireAsync(Arg.Any<IdempotencyKey>(), Arg.Any<TimeSpan?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(true));
         _clock.UtcNow.Returns(DateTimeOffset.UtcNow);
 
         await CreateSut().ProcessAsync(command);
@@ -403,6 +408,8 @@ public class ProcessWebhookUseCaseTests
         _clock.UtcNow.Returns(DateTimeOffset.UtcNow);
         _storage.SaveAsync(Arg.Any<WebhookDelivery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
+        _idempotency.TryAcquireAsync(Arg.Any<IdempotencyKey>(), Arg.Any<TimeSpan?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(true));
 
         var useCase = CreateSut();
 
@@ -424,6 +431,12 @@ public class ProcessWebhookUseCaseTests
 
         await _storage.Received(1).SaveAsync(
             Arg.Any<WebhookDelivery>(),
+            Arg.Any<CancellationToken>());
+
+        // Verify that idempotency key was set after successful save
+        await _idempotency.Received(1).TryAcquireAsync(
+            Arg.Is<IdempotencyKey>(k => k.Value == IdempotencyKey.FromDeliveryId(command.DeliveryId).Value),
+            Arg.Any<TimeSpan?>(),
             Arg.Any<CancellationToken>());
     }
 
