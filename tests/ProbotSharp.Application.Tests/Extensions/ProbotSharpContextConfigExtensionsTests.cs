@@ -110,6 +110,253 @@ public class ProbotSharpContextConfigExtensionsTests
         Assert.Equal("default", result.Name);
     }
 
+    [Fact]
+    public async Task GetConfigAsync_WithMissingOwner_ShouldReturnDefault()
+    {
+        // Arrange
+        var payload = JObject.Parse(@"{
+            ""repository"": {
+                ""name"": ""test-repo""
+            },
+            ""installation"": { ""id"": 123 }
+        }");
+        var context = CreateContext(payload);
+        var contentPort = Substitute.For<ProbotSharp.Application.Ports.Outbound.IRepositoryContentPort>();
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var logger = Substitute.For<ILogger<RepositoryConfigurationService>>();
+
+        var configService = new RepositoryConfigurationService(contentPort, cache, logger);
+        context.SetConfigurationService(configService);
+
+        var defaultConfig = new TestSettings { Name = "default" };
+
+        // Act
+        var result = await context.GetConfigAsync("config.yml", defaultConfig);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("default", result.Name);
+    }
+
+    [Fact]
+    public async Task GetConfigAsync_WithMissingRepoName_ShouldReturnDefault()
+    {
+        // Arrange
+        var payload = JObject.Parse(@"{
+            ""repository"": {
+                ""owner"": { ""login"": ""test-owner"" }
+            },
+            ""installation"": { ""id"": 123 }
+        }");
+        var context = CreateContext(payload);
+        var contentPort = Substitute.For<ProbotSharp.Application.Ports.Outbound.IRepositoryContentPort>();
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var logger = Substitute.For<ILogger<RepositoryConfigurationService>>();
+
+        var configService = new RepositoryConfigurationService(contentPort, cache, logger);
+        context.SetConfigurationService(configService);
+
+        var defaultConfig = new TestSettings { Name = "default" };
+
+        // Act
+        var result = await context.GetConfigAsync("config.yml", defaultConfig);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("default", result.Name);
+    }
+
+    [Fact]
+    public async Task GetConfigAsync_WhenServiceReturnsFailure_ShouldReturnDefault()
+    {
+        // Arrange
+        var context = CreateContext();
+        var contentPort = Substitute.For<ProbotSharp.Application.Ports.Outbound.IRepositoryContentPort>();
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var logger = Substitute.For<ILogger<RepositoryConfigurationService>>();
+
+        contentPort.GetFileContentAsync(Arg.Any<RepositoryConfigPath>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(Result<RepositoryConfigData>.Failure("not_found", "File not found"));
+
+        var configService = new RepositoryConfigurationService(contentPort, cache, logger);
+        context.SetConfigurationService(configService);
+
+        var defaultConfig = new TestSettings { Name = "default" };
+
+        // Act
+        var result = await context.GetConfigAsync("config.yml", defaultConfig);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("default", result.Name);
+    }
+
+    [Fact]
+    public async Task GetConfigAsync_WithCustomOptions_ShouldPassOptionsToService()
+    {
+        // Arrange
+        var context = CreateContext();
+        var contentPort = Substitute.For<ProbotSharp.Application.Ports.Outbound.IRepositoryContentPort>();
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var logger = Substitute.For<ILogger<RepositoryConfigurationService>>();
+
+        var yamlContent = "name: custom-options";
+        var configData = RepositoryConfigData.Create(
+            yamlContent,
+            "abc123",
+            RepositoryConfigPath.ForRoot("config.yml", "test-owner", "test-repo"));
+
+        contentPort.GetFileContentAsync(Arg.Any<RepositoryConfigPath>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(Result<RepositoryConfigData>.Success(configData));
+
+        var configService = new RepositoryConfigurationService(contentPort, cache, logger);
+        var customOptions = new RepositoryConfigurationOptions
+        {
+            ArrayMergeStrategy = ArrayMergeStrategy.Replace
+        };
+        context.SetConfigurationService(configService, customOptions);
+
+        // Act
+        var result = await context.GetConfigAsync<TestSettings>("config.yml", null, customOptions);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("custom-options", result.Name);
+    }
+
+    [Fact]
+    public async Task GetConfigAsync_Dictionary_WithNoServiceAttached_ShouldReturnDefault()
+    {
+        // Arrange
+        var context = CreateContext();
+        var defaultConfig = new Dictionary<string, object> { ["key"] = "value" };
+
+        // Act
+        var result = await context.GetConfigAsync("config.yml", defaultConfig);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("value", result["key"]);
+    }
+
+    [Fact]
+    public async Task GetConfigAsync_Dictionary_WithMissingRepository_ShouldReturnDefault()
+    {
+        // Arrange
+        var payload = JObject.Parse("{}");
+        var context = CreateContext(payload);
+        var contentPort = Substitute.For<ProbotSharp.Application.Ports.Outbound.IRepositoryContentPort>();
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var logger = Substitute.For<ILogger<RepositoryConfigurationService>>();
+
+        var configService = new RepositoryConfigurationService(contentPort, cache, logger);
+        context.SetConfigurationService(configService);
+
+        var defaultConfig = new Dictionary<string, object> { ["key"] = "default" };
+
+        // Act
+        var result = await context.GetConfigAsync("config.yml", defaultConfig);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("default", result["key"]);
+    }
+
+    [Fact]
+    public async Task GetConfigAsync_Dictionary_WithMissingOwner_ShouldReturnDefault()
+    {
+        // Arrange
+        var payload = JObject.Parse(@"{
+            ""repository"": {
+                ""name"": ""test-repo""
+            },
+            ""installation"": { ""id"": 123 }
+        }");
+        var context = CreateContext(payload);
+        var contentPort = Substitute.For<ProbotSharp.Application.Ports.Outbound.IRepositoryContentPort>();
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var logger = Substitute.For<ILogger<RepositoryConfigurationService>>();
+
+        var configService = new RepositoryConfigurationService(contentPort, cache, logger);
+        context.SetConfigurationService(configService);
+
+        var defaultConfig = new Dictionary<string, object> { ["key"] = "default" };
+
+        // Act
+        var result = await context.GetConfigAsync("config.yml", defaultConfig);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("default", result["key"]);
+    }
+
+    [Fact]
+    public async Task GetConfigAsync_Dictionary_WithMissingInstallation_ShouldReturnDefault()
+    {
+        // Arrange
+        var payload = JObject.Parse(@"{
+            ""repository"": {
+                ""name"": ""test-repo"",
+                ""owner"": { ""login"": ""test-owner"" }
+            }
+        }");
+        var context = CreateContext(payload);
+        var contentPort = Substitute.For<ProbotSharp.Application.Ports.Outbound.IRepositoryContentPort>();
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var logger = Substitute.For<ILogger<RepositoryConfigurationService>>();
+
+        var configService = new RepositoryConfigurationService(contentPort, cache, logger);
+        context.SetConfigurationService(configService);
+
+        var defaultConfig = new Dictionary<string, object> { ["key"] = "default" };
+
+        // Act
+        var result = await context.GetConfigAsync("config.yml", defaultConfig);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("default", result["key"]);
+    }
+
+    [Fact]
+    public async Task GetConfigAsync_WithCustomOptions_WhenNoOptions_ShouldWork()
+    {
+        // Arrange
+        var context = CreateContext();
+        var contentPort = Substitute.For<ProbotSharp.Application.Ports.Outbound.IRepositoryContentPort>();
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var logger = Substitute.For<ILogger<RepositoryConfigurationService>>();
+
+        var yamlContent = "name: no-options";
+        var configData = RepositoryConfigData.Create(
+            yamlContent,
+            "abc123",
+            RepositoryConfigPath.ForRoot("config.yml", "test-owner", "test-repo"));
+
+        contentPort.GetFileContentAsync(Arg.Any<RepositoryConfigPath>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(Result<RepositoryConfigData>.Success(configData));
+
+        var configService = new RepositoryConfigurationService(contentPort, cache, logger);
+        context.SetConfigurationService(configService);
+
+        var customOptions = new RepositoryConfigurationOptions { ArrayMergeStrategy = ArrayMergeStrategy.Concatenate };
+
+        // Act
+        var result = await context.GetConfigAsync<TestSettings>("config.yml", null, customOptions);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("no-options", result.Name);
+    }
+
     private static ProbotSharpContext CreateContext(JObject? payload = null)
     {
         payload ??= JObject.Parse(@"{
