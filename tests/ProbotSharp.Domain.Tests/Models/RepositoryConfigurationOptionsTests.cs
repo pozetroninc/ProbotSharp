@@ -262,15 +262,14 @@ public class RepositoryConfigurationOptionsTests
     }
 
     [Theory]
-    [InlineData(true, true, true, true)]
-    [InlineData(false, false, false, false)]
-    [InlineData(true, false, true, false)]
-    [InlineData(false, true, false, true)]
+    [InlineData(true, true, true)]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, false)]
     public void BooleanFlags_ShouldSupportVariousCombinations(
         bool enableOrg,
         bool enableCascade,
-        bool enableExtends,
-        bool expectedOrg)
+        bool enableExtends)
     {
         // Arrange & Act
         var options = new RepositoryConfigurationOptions
@@ -281,7 +280,7 @@ public class RepositoryConfigurationOptionsTests
         };
 
         // Assert
-        options.EnableOrganizationConfig.Should().Be(expectedOrg);
+        options.EnableOrganizationConfig.Should().Be(enableOrg);
         options.EnableGitHubDirectoryCascade.Should().Be(enableCascade);
         options.EnableExtendsKey.Should().Be(enableExtends);
     }

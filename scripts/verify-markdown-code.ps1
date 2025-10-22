@@ -19,7 +19,7 @@ if ($LASTEXITCODE -eq 0) {
 }
 
 # Run verifier
-$excludePatterns = "node_modules/,.git/,.aidocs/,TEST-MARKDOWN-VERIFIER.md,.worktrees/"
+$excludePatterns = "node_modules/,.git/,.aidocs/,TEST-MARKDOWN-VERIFIER.md,.worktrees/,docs/plans/"
 $additionalArgs = $args -join " "
 dotnet run --project tools/MarkdownCodeVerifier --configuration Release --no-build -- "$RepoRoot" "$excludePatterns" $additionalArgs
 exit $LASTEXITCODE

@@ -70,7 +70,6 @@ public sealed class RedisAccessTokenCacheIntegrationTests : IAsyncLifetime
         _redis?.Dispose();
         if (_redisContainer != null)
         {
-            await _redisContainer.StopAsync();
             await _redisContainer.DisposeAsync();
         }
     }
