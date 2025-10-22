@@ -1,10 +1,13 @@
 // Copyright (c) ProbotSharp Contributors.
 // Licensed under the MIT License.
 
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
+using Octokit;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Application.Services;
 using ProbotSharp.Domain.Context;
+using ProbotSharp.Domain.Contracts;
 
 namespace ProbotSharp.Application.Tests.Services;
 
@@ -16,15 +19,23 @@ public class MetadataServiceTests
     public MetadataServiceTests()
     {
         _mockPort = Substitute.For<IMetadataPort>();
-        _context = new ProbotSharpContext
-        {
-            Payload = JObject.Parse(@"{""issue"":{""number"":42}}"),
-            Repository = new RepositoryInfo
-            {
-                Owner = "owner",
-                Name = "repo"
-            }
-        };
+
+        var payload = JObject.Parse(@"{""issue"":{""number"":42}}");
+        var logger = Substitute.For<ILogger>();
+        var gitHub = Substitute.For<IGitHubClient>();
+        var graphQL = Substitute.For<IGitHubGraphQlClient>();
+        var repository = new RepositoryInfo(12345, "repo", "owner", "owner/repo");
+
+        _context = new ProbotSharpContext(
+            "test-delivery-id",
+            "issues",
+            "opened",
+            payload,
+            logger,
+            gitHub,
+            graphQL,
+            repository,
+            null);
     }
 
     #region Constructor Tests

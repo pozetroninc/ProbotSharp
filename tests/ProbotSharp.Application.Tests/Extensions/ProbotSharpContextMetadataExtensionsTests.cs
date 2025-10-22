@@ -1,10 +1,13 @@
 // Copyright (c) ProbotSharp Contributors.
 // Licensed under the MIT License.
 
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
+using Octokit;
 using ProbotSharp.Application.Extensions;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Domain.Context;
+using ProbotSharp.Domain.Contracts;
 
 namespace ProbotSharp.Application.Tests.Extensions;
 
@@ -469,24 +472,39 @@ public class ProbotSharpContextMetadataExtensionsTests
 
     private static ProbotSharpContext CreateContextWithRepository(JObject payload)
     {
-        return new ProbotSharpContext
-        {
-            Payload = payload,
-            Repository = new RepositoryInfo
-            {
-                Owner = "owner",
-                Name = "repo"
-            }
-        };
+        var logger = Substitute.For<ILogger>();
+        var gitHub = Substitute.For<IGitHubClient>();
+        var graphQL = Substitute.For<IGitHubGraphQlClient>();
+        var repository = new RepositoryInfo(12345, "repo", "owner", "owner/repo");
+
+        return new ProbotSharpContext(
+            "test-delivery-id",
+            "issues",
+            "opened",
+            payload,
+            logger,
+            gitHub,
+            graphQL,
+            repository,
+            null);
     }
 
     private static ProbotSharpContext CreateContextWithoutRepository(JObject payload)
     {
-        return new ProbotSharpContext
-        {
-            Payload = payload,
-            Repository = null
-        };
+        var logger = Substitute.For<ILogger>();
+        var gitHub = Substitute.For<IGitHubClient>();
+        var graphQL = Substitute.For<IGitHubGraphQlClient>();
+
+        return new ProbotSharpContext(
+            "test-delivery-id",
+            "issues",
+            "opened",
+            payload,
+            logger,
+            gitHub,
+            graphQL,
+            null,
+            null);
     }
 
     #endregion
