@@ -1,6 +1,8 @@
 // Copyright (c) ProbotSharp Contributors.
 // Licensed under the MIT License.
 
+using ProbotSharp.Domain.Abstractions;
+
 namespace ProbotSharp.Shared.Abstractions;
 
 /// <summary>

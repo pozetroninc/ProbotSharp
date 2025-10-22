@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Bootstrap.Api.Middleware;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Bootstrap.Api.Tests.Middleware;
 

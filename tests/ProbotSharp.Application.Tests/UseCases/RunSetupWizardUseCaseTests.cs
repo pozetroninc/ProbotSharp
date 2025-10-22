@@ -5,7 +5,7 @@ using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Application.UseCases;
 using ProbotSharp.Domain.ValueObjects;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Application.Tests.UseCases;
 

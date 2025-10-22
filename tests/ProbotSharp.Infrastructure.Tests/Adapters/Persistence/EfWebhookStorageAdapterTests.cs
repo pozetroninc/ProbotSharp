@@ -82,10 +82,13 @@ public sealed class EfWebhookStorageAdapterTests : IDisposable
     }
 
     private static WebhookDelivery CreateDelivery()
-        => WebhookDelivery.Create(
+    {
+        var result = WebhookDelivery.Create(
             DeliveryId.Create(Guid.NewGuid().ToString()),
             WebhookEventName.Create("push"),
             DateTimeOffset.UtcNow,
             WebhookPayload.Create("{\"ok\":true}"),
             InstallationId.Create(1));
+        return result.Value!;
+    }
 }

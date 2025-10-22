@@ -8,7 +8,7 @@ using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Domain.Entities;
 using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Infrastructure.Adapters.Persistence.Models;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 #pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
 
@@ -80,7 +80,14 @@ public sealed class EfWebhookStorageAdapter : IWebhookStoragePort
                 return Result<WebhookDelivery?>.Success(null);
             }
 
-            return Result<WebhookDelivery?>.Success(entity.ToDomain());
+            var domainResult = entity.ToDomain();
+            if (!domainResult.IsSuccess)
+            {
+                return Result<WebhookDelivery?>.Failure(
+                    domainResult.Error ?? new Error("webhook_entity_mapping_failed", "Failed to map webhook entity to domain"));
+            }
+
+            return Result<WebhookDelivery?>.Success(domainResult.Value);
         }
         catch (Exception ex)
         {

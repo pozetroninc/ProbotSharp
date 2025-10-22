@@ -3,6 +3,7 @@
 
 using ProbotSharp.Domain.Entities;
 using ProbotSharp.Domain.ValueObjects;
+using ProbotSharp.Domain.Abstractions;
 
 using DeliveryIdValue = ProbotSharp.Domain.ValueObjects.DeliveryId;
 using EventNameValue = ProbotSharp.Domain.ValueObjects.WebhookEventName;
@@ -43,17 +44,23 @@ public sealed class WebhookDeliveryEntity
             InstallationId = delivery.InstallationId?.Value,
         };
 
-    internal WebhookDelivery ToDomain()
+    internal Result<WebhookDelivery> ToDomain()
     {
         var payload = WebhookPayload.Create(this.Payload);
-        var delivery = WebhookDelivery.Create(
+        var deliveryResult = WebhookDelivery.Create(
             DeliveryIdValue.Create(this.DeliveryId),
             EventNameValue.Create(this.EventName),
             this.DeliveredAt,
             payload,
             this.InstallationId.HasValue ? InstallationIdValue.Create(this.InstallationId.Value) : null);
 
+        if (!deliveryResult.IsSuccess)
+        {
+            return deliveryResult;
+        }
+
+        var delivery = deliveryResult.Value!;
         delivery.ClearDomainEvents();
-        return delivery;
+        return Result<WebhookDelivery>.Success(delivery);
     }
 }

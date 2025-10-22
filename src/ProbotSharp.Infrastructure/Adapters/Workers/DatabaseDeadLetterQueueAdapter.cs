@@ -10,7 +10,7 @@ using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Infrastructure.Adapters.Persistence;
 using ProbotSharp.Infrastructure.Adapters.Persistence.Models;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 #pragma warning disable CA1848 // Performance: LoggerMessage delegates - not performance-critical for this codebase
 

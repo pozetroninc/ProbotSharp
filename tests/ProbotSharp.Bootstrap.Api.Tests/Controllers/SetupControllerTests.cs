@@ -12,7 +12,7 @@ using ProbotSharp.Application.Ports.Inbound;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Bootstrap.Api.Controllers;
 using ProbotSharp.Domain.ValueObjects;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Bootstrap.Api.Tests.Controllers;
 

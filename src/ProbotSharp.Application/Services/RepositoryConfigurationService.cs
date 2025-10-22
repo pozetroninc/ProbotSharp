@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Domain.Models;
 using ProbotSharp.Domain.ValueObjects;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
