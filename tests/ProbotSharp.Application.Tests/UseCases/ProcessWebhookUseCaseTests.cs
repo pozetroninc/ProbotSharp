@@ -325,4 +325,69 @@ public class ProcessWebhookUseCaseTests
         result.Error!.Value.Code.Should().Be("webhook_signature_invalid");
         result.Error!.Value.Message.Should().Contain("signature validation failed");
     }
+
+    [Fact]
+    public async Task CheckForDuplicateAsync_WhenNotDuplicate_ShouldReturnVerifiedUniqueWebhook()
+    {
+        // Arrange
+        var command = CreateCommand();
+        var untrusted = new UntrustedWebhook(command);
+        var validated = new ValidatedWebhook(untrusted);
+
+        _storage.GetAsync(command.DeliveryId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(Result<WebhookDelivery?>.Success(null)));
+
+        var useCase = CreateSut();
+
+        // Use reflection to access private method
+        var method = typeof(ProcessWebhookUseCase).GetMethod(
+            "CheckForDuplicateAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        // Act
+        var resultTask = method!.Invoke(useCase, new object[] { validated, CancellationToken.None });
+        var result = await (Task<Result<VerifiedUniqueWebhook>>)resultTask!;
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
+        result.Value!.Command.Should().Be(command);
+    }
+
+    [Fact]
+    public async Task CheckForDuplicateAsync_WhenDuplicate_ShouldReturnFailureWithDuplicateCode()
+    {
+        // Arrange
+        var command = CreateCommand();
+        var untrusted = new UntrustedWebhook(command);
+        var validated = new ValidatedWebhook(untrusted);
+
+        // Create existing delivery to simulate duplicate
+        var existingDelivery = WebhookDelivery.Create(
+            command.DeliveryId,
+            command.EventName,
+            DateTimeOffset.UtcNow,
+            command.Payload,
+            command.InstallationId);
+
+        _storage.GetAsync(command.DeliveryId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(Result<WebhookDelivery?>.Success(existingDelivery)));
+
+        var useCase = CreateSut();
+
+        // Use reflection to access private method
+        var method = typeof(ProcessWebhookUseCase).GetMethod(
+            "CheckForDuplicateAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        // Act
+        var resultTask = method!.Invoke(useCase, new object[] { validated, CancellationToken.None });
+        var result = await (Task<Result<VerifiedUniqueWebhook>>)resultTask!;
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Should().NotBeNull();
+        result.Error!.Value.Code.Should().Be("webhook_duplicate_delivery");
+        result.Error!.Value.Message.Should().Contain(command.DeliveryId.Value);
+    }
 }

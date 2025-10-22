@@ -289,4 +289,40 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
 
         return Result<ValidatedWebhook>.Success(new ValidatedWebhook(untrusted));
     }
+
+    /// <summary>
+    /// Step 2: Check for duplicate delivery (idempotency).
+    /// ValidatedWebhook → VerifiedUniqueWebhook.
+    /// </summary>
+    /// <param name="validated">The validated webhook.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>VerifiedUniqueWebhook if not duplicate, otherwise failure with duplicate code.</returns>
+    private async Task<Result<VerifiedUniqueWebhook>> CheckForDuplicateAsync(
+        ValidatedWebhook validated,
+        CancellationToken cancellationToken)
+    {
+        var command = validated.Command;
+
+        // Check if delivery already exists in storage
+        var existingResult = await this._storage.GetAsync(command.DeliveryId, cancellationToken).ConfigureAwait(false);
+        if (!existingResult.IsSuccess)
+        {
+            return Result<VerifiedUniqueWebhook>.Failure(
+                existingResult.Error ?? new Error(
+                    "storage_read_failed",
+                    "Unable to check for existing webhook delivery"));
+        }
+
+        if (existingResult.Value is not null)
+        {
+            // Special case: duplicate is a valid success scenario, but needs different handling
+            // We'll use a custom error code that the orchestrator recognizes
+            return Result<VerifiedUniqueWebhook>.Failure(
+                new Error(
+                    "webhook_duplicate_delivery",
+                    $"Webhook delivery {command.DeliveryId.Value} has already been processed"));
+        }
+
+        return Result<VerifiedUniqueWebhook>.Success(new VerifiedUniqueWebhook(validated));
+    }
 }
