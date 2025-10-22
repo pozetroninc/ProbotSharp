@@ -480,4 +480,45 @@ public class ProcessWebhookUseCaseTests
             Arg.Any<WebhookDelivery>(),
             Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task RouteToHandlersAsync_ShouldCreateContextAndRoute()
+    {
+        // Arrange
+        var command = CreateCommand();
+        var delivery = CreateWebhookDelivery(command);
+        var untrusted = new UntrustedWebhook(command);
+        var validated = new ValidatedWebhook(untrusted);
+        var unique = new VerifiedUniqueWebhook(validated);
+        var persisted = new PersistedWebhook(unique, delivery);
+
+        var useCase = CreateSut();
+
+        // Use reflection to access private method
+        var method = typeof(ProcessWebhookUseCase).GetMethod(
+            "RouteToHandlersAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        // Act
+        var resultTask = method!.Invoke(useCase, new object[] { persisted, CancellationToken.None });
+        var result = await (Task<Result<PersistedWebhook>>)resultTask!;
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(persisted);
+
+        await _contextFactory.Received(1).CreateAsync(
+            Arg.Is<WebhookDelivery>(d => d.Id == command.DeliveryId),
+            Arg.Any<CancellationToken>());
+    }
+
+    private WebhookDelivery CreateWebhookDelivery(ProcessWebhookCommand command)
+    {
+        return WebhookDelivery.Create(
+            command.DeliveryId,
+            command.EventName,
+            DateTimeOffset.UtcNow,
+            command.Payload,
+            command.InstallationId);
+    }
 }

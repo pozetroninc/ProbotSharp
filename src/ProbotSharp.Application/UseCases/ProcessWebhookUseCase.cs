@@ -384,4 +384,32 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
 
         return Result<PersistedWebhook>.Success(new PersistedWebhook(unique, delivery));
     }
+
+    /// <summary>
+    /// Step 4: Route to event handlers.
+    /// PersistedWebhook → PersistedWebhook (terminal step).
+    /// </summary>
+    /// <param name="persisted">The persisted webhook.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Same PersistedWebhook after routing completes.</returns>
+    private async Task<Result<PersistedWebhook>> RouteToHandlersAsync(
+        PersistedWebhook persisted,
+        CancellationToken cancellationToken)
+    {
+        var delivery = persisted.Delivery;
+
+        try
+        {
+            var context = await this._contextFactory.CreateAsync(delivery, cancellationToken).ConfigureAwait(false);
+            await this._eventRouter.RouteAsync(context, this._serviceProvider, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Note: Handler failures should not cause webhook processing to fail
+            // The webhook has been successfully persisted at this point
+            // Exceptions are logged by the tracing and metrics infrastructure
+        }
+
+        return Result<PersistedWebhook>.Success(persisted);
+    }
 }
