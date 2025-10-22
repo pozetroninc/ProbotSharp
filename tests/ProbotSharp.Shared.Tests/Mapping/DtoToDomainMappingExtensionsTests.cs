@@ -116,9 +116,11 @@ public sealed class DtoToDomainMappingExtensionsTests
         };
 
         // Act
-        var delivery = dto.ToDomain();
+        var result = dto.ToDomain();
 
         // Assert
+        result.IsSuccess.Should().BeTrue();
+        var delivery = result.Value!;
         delivery.Should().NotBeNull();
         delivery.Id.Value.Should().Be("abc-123-def");
         delivery.EventName.Value.Should().Be("push");
@@ -143,9 +145,11 @@ public sealed class DtoToDomainMappingExtensionsTests
         };
 
         // Act
-        var delivery = dto.ToDomain();
+        var result = dto.ToDomain();
 
         // Assert
+        result.IsSuccess.Should().BeTrue();
+        var delivery = result.Value!;
         delivery.Should().NotBeNull();
         delivery.InstallationId.Should().BeNull();
     }
@@ -285,9 +289,11 @@ public sealed class DtoToDomainMappingExtensionsTests
         };
 
         // Act
-        var deliveries = dtos.ToDomainList();
+        var result = dtos.ToDomainList();
 
         // Assert
+        result.IsSuccess.Should().BeTrue();
+        var deliveries = result.Value!;
         deliveries.Should().HaveCount(2);
         deliveries[0].Id.Value.Should().Be("abc-123");
         deliveries[0].EventName.Value.Should().Be("push");
@@ -305,10 +311,11 @@ public sealed class DtoToDomainMappingExtensionsTests
         var dtos = Enumerable.Empty<WebhookDeliveryDto>();
 
         // Act
-        var deliveries = dtos.ToDomainList();
+        var result = dtos.ToDomainList();
 
         // Assert
-        deliveries.Should().BeEmpty();
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeEmpty();
     }
 
     [Fact]

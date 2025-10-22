@@ -4,7 +4,7 @@
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Domain.Contracts;
 using ProbotSharp.Infrastructure.Adapters.GitHub;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Infrastructure.Tests.Adapters.GitHub;
 

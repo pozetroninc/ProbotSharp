@@ -21,12 +21,13 @@ public class WebhookDeliveryForInstallationSpecificationTests
     public void IsSatisfiedBy_WithMatchingInstallation_ShouldReturnTrue()
     {
         var installationId = InstallationId.Create(123);
-        var delivery = WebhookDelivery.Create(
+        var result = WebhookDelivery.Create(
             DeliveryId.Create(Guid.NewGuid().ToString()),
             WebhookEventName.Create("push"),
             DateTimeOffset.UtcNow,
             WebhookPayload.Create("{}"),
             installationId);
+        var delivery = result.Value!;
         var spec = new WebhookDeliveryForInstallationSpecification(installationId);
 
         spec.IsSatisfiedBy(delivery).Should().BeTrue();
@@ -35,12 +36,13 @@ public class WebhookDeliveryForInstallationSpecificationTests
     [Fact]
     public void IsSatisfiedBy_WithDifferentInstallation_ShouldReturnFalse()
     {
-        var delivery = WebhookDelivery.Create(
+        var result = WebhookDelivery.Create(
             DeliveryId.Create(Guid.NewGuid().ToString()),
             WebhookEventName.Create("push"),
             DateTimeOffset.UtcNow,
             WebhookPayload.Create("{}"),
             InstallationId.Create(123));
+        var delivery = result.Value!;
         var spec = new WebhookDeliveryForInstallationSpecification(InstallationId.Create(456));
 
         spec.IsSatisfiedBy(delivery).Should().BeFalse();
@@ -49,12 +51,13 @@ public class WebhookDeliveryForInstallationSpecificationTests
     [Fact]
     public void IsSatisfiedBy_WithNullInstallationId_ShouldReturnFalse()
     {
-        var delivery = WebhookDelivery.Create(
+        var result = WebhookDelivery.Create(
             DeliveryId.Create(Guid.NewGuid().ToString()),
             WebhookEventName.Create("push"),
             DateTimeOffset.UtcNow,
             WebhookPayload.Create("{}"),
             null);
+        var delivery = result.Value!;
         var spec = new WebhookDeliveryForInstallationSpecification(InstallationId.Create(123));
 
         spec.IsSatisfiedBy(delivery).Should().BeFalse();

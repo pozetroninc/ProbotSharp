@@ -54,8 +54,8 @@ public sealed class WebhookDelivery : AggregateRoot<DeliveryId>
     /// <param name="deliveredAt">The delivery timestamp.</param>
     /// <param name="payload">The webhook payload.</param>
     /// <param name="installationId">The installation ID if applicable.</param>
-    /// <returns>A new webhook delivery instance.</returns>
-    public static WebhookDelivery Create(
+    /// <returns>A result containing the new webhook delivery instance or an error.</returns>
+    public static Result<WebhookDelivery> Create(
         DeliveryId id,
         WebhookEventName eventName,
         DateTimeOffset deliveredAt,
@@ -64,11 +64,13 @@ public sealed class WebhookDelivery : AggregateRoot<DeliveryId>
     {
         if (deliveredAt == default)
         {
-            throw new ArgumentException("DeliveredAt must be set.", nameof(deliveredAt));
+            return Result<WebhookDelivery>.Failure(
+                "webhook_delivery.invalid_delivered_at",
+                "DeliveredAt must be set.");
         }
 
         var delivery = new WebhookDelivery(id, eventName, deliveredAt, payload, installationId);
         delivery.RaiseDomainEvent(new WebhookDeliveredDomainEvent(id, eventName, deliveredAt));
-        return delivery;
+        return Result<WebhookDelivery>.Success(delivery);
     }
 }

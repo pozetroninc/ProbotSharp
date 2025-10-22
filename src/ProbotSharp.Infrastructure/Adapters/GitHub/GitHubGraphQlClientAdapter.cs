@@ -15,7 +15,7 @@ using Polly.Retry;
 using Polly.Timeout;
 
 using ProbotSharp.Application.Ports.Outbound;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Infrastructure.Adapters.GitHub;
 

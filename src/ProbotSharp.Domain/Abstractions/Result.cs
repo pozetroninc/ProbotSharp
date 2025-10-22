@@ -1,4 +1,4 @@
-namespace ProbotSharp.Shared.Abstractions;
+namespace ProbotSharp.Domain.Abstractions;
 
 /// <summary>
 /// Represents the result of an operation that can succeed or fail.

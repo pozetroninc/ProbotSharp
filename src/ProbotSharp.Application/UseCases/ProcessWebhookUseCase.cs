@@ -10,7 +10,7 @@ using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Application.Services;
 using ProbotSharp.Domain.Entities;
 using ProbotSharp.Domain.Services;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Application.UseCases;
 
@@ -166,13 +166,21 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
 
                 // Step 3: Process and save webhook delivery
                 this._tracing.AddEvent("webhook.save_delivery");
-                var delivery = WebhookDelivery.Create(
+                var deliveryResult = WebhookDelivery.Create(
                     command.DeliveryId,
                     command.EventName,
                     this._clock.UtcNow,
                     command.Payload,
                     command.InstallationId);
 
+                if (!deliveryResult.IsSuccess)
+                {
+                    return deliveryResult.Error is null
+                        ? Result.Failure("webhook_delivery_creation_failed", "Unable to create webhook delivery")
+                        : Result.Failure(deliveryResult.Error.Value);
+                }
+
+                var delivery = deliveryResult.Value!;
                 var saveResult = await this._storage.SaveAsync(delivery, ct).ConfigureAwait(false);
                 if (!saveResult.IsSuccess)
                 {

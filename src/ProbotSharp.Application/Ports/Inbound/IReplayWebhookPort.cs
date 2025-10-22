@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using ProbotSharp.Application.Models;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Application.Ports.Inbound;
 

@@ -155,7 +155,8 @@ public sealed class DomainToDtoMappingExtensionsTests
         var deliveredAt = DateTimeOffset.UtcNow;
         var payload = WebhookPayload.Create("{\"action\":\"opened\"}");
         var installationId = InstallationId.Create(67890);
-        var delivery = WebhookDelivery.Create(deliveryId, eventName, deliveredAt, payload, installationId);
+        var deliveryResult = WebhookDelivery.Create(deliveryId, eventName, deliveredAt, payload, installationId);
+        var delivery = deliveryResult.Value!;
 
         // Act
         var dto = delivery.ToDto();
@@ -177,7 +178,8 @@ public sealed class DomainToDtoMappingExtensionsTests
         var eventName = WebhookEventName.Create("push");
         var deliveredAt = DateTimeOffset.UtcNow;
         var payload = WebhookPayload.Create("{\"action\":\"opened\"}");
-        var delivery = WebhookDelivery.Create(deliveryId, eventName, deliveredAt, payload, null);
+        var deliveryResult = WebhookDelivery.Create(deliveryId, eventName, deliveredAt, payload, null);
+        var delivery = deliveryResult.Value!;
 
         // Act
         var dto = delivery.ToDto();
@@ -351,8 +353,10 @@ public sealed class DomainToDtoMappingExtensionsTests
         var eventName = WebhookEventName.Create("push");
         var deliveredAt = DateTimeOffset.UtcNow;
         var payload = WebhookPayload.Create("{\"action\":\"opened\"}");
-        var delivery1 = WebhookDelivery.Create(deliveryId1, eventName, deliveredAt, payload, null);
-        var delivery2 = WebhookDelivery.Create(deliveryId2, eventName, deliveredAt, payload, null);
+        var deliveryResult1 = WebhookDelivery.Create(deliveryId1, eventName, deliveredAt, payload, null);
+        var delivery1 = deliveryResult1.Value!;
+        var deliveryResult2 = WebhookDelivery.Create(deliveryId2, eventName, deliveredAt, payload, null);
+        var delivery2 = deliveryResult2.Value!;
         var deliveries = new[] { delivery1, delivery2 };
 
         // Act

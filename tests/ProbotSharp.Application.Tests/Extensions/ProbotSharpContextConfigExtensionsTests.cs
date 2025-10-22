@@ -14,7 +14,7 @@ using ProbotSharp.Application.Services;
 using ProbotSharp.Domain.Context;
 using ProbotSharp.Domain.Models;
 using ProbotSharp.Domain.ValueObjects;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Application.Tests.Extensions;
 

@@ -1,3 +1,4 @@
+using ProbotSharp.Domain.Abstractions;
 using ProbotSharp.Domain.Entities;
 using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Shared.DTOs;
@@ -46,8 +47,8 @@ public static class DtoToDomainMappingExtensions
     /// Maps a WebhookDeliveryDto to a WebhookDelivery domain entity.
     /// </summary>
     /// <param name="dto">The WebhookDeliveryDto.</param>
-    /// <returns>The mapped WebhookDelivery entity.</returns>
-    public static WebhookDelivery ToDomain(this WebhookDeliveryDto dto)
+    /// <returns>A result containing the mapped WebhookDelivery entity or an error.</returns>
+    public static Result<WebhookDelivery> ToDomain(this WebhookDeliveryDto dto)
     {
         ArgumentNullException.ThrowIfNull(dto);
 
@@ -93,10 +94,23 @@ public static class DtoToDomainMappingExtensions
     /// Maps a collection of WebhookDeliveryDto objects to WebhookDelivery entities.
     /// </summary>
     /// <param name="dtos">The collection of WebhookDeliveryDto objects.</param>
-    /// <returns>A list of WebhookDelivery entities.</returns>
-    public static List<WebhookDelivery> ToDomainList(this IEnumerable<WebhookDeliveryDto> dtos)
+    /// <returns>A result containing a list of WebhookDelivery entities or an error.</returns>
+    public static Result<List<WebhookDelivery>> ToDomainList(this IEnumerable<WebhookDeliveryDto> dtos)
     {
         ArgumentNullException.ThrowIfNull(dtos);
-        return dtos.Select(d => d.ToDomain()).ToList();
+        var deliveries = new List<WebhookDelivery>();
+        foreach (var dto in dtos)
+        {
+            var result = dto.ToDomain();
+            if (!result.IsSuccess)
+            {
+                return Result<List<WebhookDelivery>>.Failure(
+                    result.Error ?? new Error("mapping_error", "Failed to map WebhookDeliveryDto to domain entity"));
+            }
+
+            deliveries.Add(result.Value!);
+        }
+
+        return Result<List<WebhookDelivery>>.Success(deliveries);
     }
 }
