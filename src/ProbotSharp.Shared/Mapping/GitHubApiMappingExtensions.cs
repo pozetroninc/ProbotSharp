@@ -113,10 +113,19 @@ public static class GitHubApiMappingExtensions
                 repo.TryGetProperty("name", out var name) &&
                 repo.TryGetProperty("full_name", out var fullName))
             {
+                var nameValue = name.GetString();
+                var fullNameValue = fullName.GetString();
+
+                // Repository.Create validates that name and fullName cannot be null or empty
+                if (string.IsNullOrEmpty(nameValue) || string.IsNullOrEmpty(fullNameValue))
+                {
+                    return null;
+                }
+
                 return Repository.Create(
                     id: id.GetInt64(),
-                    name: name.GetString() ?? string.Empty,
-                    fullName: fullName.GetString() ?? string.Empty
+                    name: nameValue,
+                    fullName: fullNameValue
                 );
             }
         }
