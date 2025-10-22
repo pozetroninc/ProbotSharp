@@ -8,6 +8,7 @@ using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Inbound;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Application.Services;
+using ProbotSharp.Application.WorkflowStates;
 using ProbotSharp.Domain.Entities;
 using ProbotSharp.Domain.Services;
 using ProbotSharp.Shared.Abstractions;
@@ -242,5 +243,50 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
                 ]);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Step 1: Validate webhook signature.
+    /// UntrustedWebhook → ValidatedWebhook.
+    /// </summary>
+    /// <param name="untrusted">The untrusted webhook.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>ValidatedWebhook if signature is valid, otherwise failure.</returns>
+    private async Task<Result<ValidatedWebhook>> ValidateSignatureAsync(
+        UntrustedWebhook untrusted,
+        CancellationToken cancellationToken)
+    {
+        var command = untrusted.Command;
+
+        // Get the webhook secret from configuration
+        var secretResult = await this._appConfig.GetWebhookSecretAsync(cancellationToken).ConfigureAwait(false);
+        if (!secretResult.IsSuccess)
+        {
+            return Result<ValidatedWebhook>.Failure(
+                secretResult.Error ?? new Error(
+                    "webhook_secret_unavailable",
+                    "Unable to retrieve webhook secret for signature validation"));
+        }
+
+        var secret = secretResult.Value;
+        if (string.IsNullOrWhiteSpace(secret))
+        {
+            return Result<ValidatedWebhook>.Failure(
+                new Error("webhook_secret_empty", "Webhook secret is not configured"));
+        }
+
+        // Validate the signature
+        var isSignatureValid = this._signatureValidator.IsSignatureValid(
+            command.RawPayload,
+            secret,
+            command.Signature.Value);
+
+        if (!isSignatureValid)
+        {
+            return Result<ValidatedWebhook>.Failure(
+                new Error("webhook_signature_invalid", "Webhook signature validation failed"));
+        }
+
+        return Result<ValidatedWebhook>.Success(new ValidatedWebhook(untrusted));
     }
 }

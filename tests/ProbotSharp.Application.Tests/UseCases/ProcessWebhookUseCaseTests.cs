@@ -14,6 +14,7 @@ using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Application.Services;
 using ProbotSharp.Application.UseCases;
+using ProbotSharp.Application.WorkflowStates;
 using ProbotSharp.Domain.Entities;
 using ProbotSharp.Domain.Services;
 using ProbotSharp.Domain.ValueObjects;
@@ -268,5 +269,60 @@ public class ProcessWebhookUseCaseTests
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
         var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
         return "sha256=" + Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    [Fact]
+    public async Task ValidateSignatureAsync_WithValidSignature_ShouldReturnValidatedWebhook()
+    {
+        // Arrange
+        var command = CreateCommand();
+        var untrusted = new UntrustedWebhook(command);
+
+        _appConfig.GetWebhookSecretAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(Result<string>.Success("test-secret")));
+
+        var useCase = CreateSut();
+
+        // Use reflection to access private method
+        var method = typeof(ProcessWebhookUseCase).GetMethod(
+            "ValidateSignatureAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        // Act
+        var resultTask = method!.Invoke(useCase, new object[] { untrusted, CancellationToken.None });
+        var result = await (Task<Result<ValidatedWebhook>>)resultTask!;
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
+        result.Value!.Command.Should().Be(command);
+    }
+
+    [Fact]
+    public async Task ValidateSignatureAsync_WithInvalidSignature_ShouldReturnFailure()
+    {
+        // Arrange
+        var command = CreateCommand(signatureValid: false);
+        var untrusted = new UntrustedWebhook(command);
+
+        _appConfig.GetWebhookSecretAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(Result<string>.Success("test-secret")));
+
+        var useCase = CreateSut();
+
+        // Use reflection to access private method
+        var method = typeof(ProcessWebhookUseCase).GetMethod(
+            "ValidateSignatureAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        // Act
+        var resultTask = method!.Invoke(useCase, new object[] { untrusted, CancellationToken.None });
+        var result = await (Task<Result<ValidatedWebhook>>)resultTask!;
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Should().NotBeNull();
+        result.Error!.Value.Code.Should().Be("webhook_signature_invalid");
+        result.Error!.Value.Message.Should().Contain("signature validation failed");
     }
 }
