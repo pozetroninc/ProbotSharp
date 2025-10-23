@@ -11,7 +11,7 @@ using ProbotSharp.Application.Ports.Inbound;
 using ProbotSharp.Domain.Entities;
 using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Infrastructure.Context;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Infrastructure.Tests.Context;
 
@@ -62,12 +62,13 @@ public class ProbotSharpContextFactoryTests
             }
         }");
 
-        var delivery = WebhookDelivery.Create(
+        var deliveryResult = WebhookDelivery.Create(
             DeliveryId.Create("delivery-123"),
             WebhookEventName.Create("issues"),
             DateTimeOffset.UtcNow,
             payload,
             installationId);
+        var delivery = deliveryResult.Value!;
 
         var token = InstallationAccessToken.Create("ghs_token123", DateTimeOffset.UtcNow.AddHours(1));
         _installationAuth
@@ -110,12 +111,13 @@ public class ProbotSharpContextFactoryTests
             }
         }");
 
-        var delivery = WebhookDelivery.Create(
+        var deliveryResult = WebhookDelivery.Create(
             DeliveryId.Create("delivery-123"),
             WebhookEventName.Create("push"),
             DateTimeOffset.UtcNow,
             payload,
             null);
+        var delivery = deliveryResult.Value!;
 
         // Act
         var context = await _factory.CreateAsync(delivery, CancellationToken.None);
@@ -147,12 +149,13 @@ public class ProbotSharpContextFactoryTests
             }
         }");
 
-        var delivery = WebhookDelivery.Create(
+        var deliveryResult = WebhookDelivery.Create(
             DeliveryId.Create("delivery-123"),
             WebhookEventName.Create("installation"),
             DateTimeOffset.UtcNow,
             payload,
             installationId);
+        var delivery = deliveryResult.Value!;
 
         var token = InstallationAccessToken.Create("ghs_token123", DateTimeOffset.UtcNow.AddHours(1));
         _installationAuth
@@ -182,12 +185,13 @@ public class ProbotSharpContextFactoryTests
             }
         }");
 
-        var delivery = WebhookDelivery.Create(
+        var deliveryResult = WebhookDelivery.Create(
             DeliveryId.Create("delivery-123"),
             WebhookEventName.Create("issues"),
             DateTimeOffset.UtcNow,
             payload,
             installationId);
+        var delivery = deliveryResult.Value!;
 
         _installationAuth
             .AuthenticateAsync(Arg.Any<AuthenticateInstallationCommand>(), Arg.Any<CancellationToken>())
@@ -214,12 +218,13 @@ public class ProbotSharpContextFactoryTests
             }
         }");
 
-        var delivery = WebhookDelivery.Create(
+        var deliveryResult = WebhookDelivery.Create(
             DeliveryId.Create("delivery-123"),
             WebhookEventName.Create("issues"),
             DateTimeOffset.UtcNow,
             payload,
             installationId);
+        var delivery = deliveryResult.Value!;
 
         var token = InstallationAccessToken.Create("ghs_token123", DateTimeOffset.UtcNow.AddHours(1));
         _installationAuth
@@ -240,12 +245,13 @@ public class ProbotSharpContextFactoryTests
     {
         // Arrange
         var payload = WebhookPayload.Create("{}");
-        var delivery = WebhookDelivery.Create(
+        var deliveryResult = WebhookDelivery.Create(
             DeliveryId.Create("delivery-123"),
             WebhookEventName.Create("pull_request"),
             DateTimeOffset.UtcNow,
             payload,
             null);
+        var delivery = deliveryResult.Value!;
 
         // Act
         await _factory.CreateAsync(delivery, CancellationToken.None);

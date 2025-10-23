@@ -260,4 +260,83 @@ public sealed class DbIdempotencyAdapterTests : IDisposable
         results.Count(r => r).Should().Be(1);
         results.Count(r => !r).Should().Be(1);
     }
+
+    [Fact]
+    public void Constructor_WithNullDbContext_ShouldThrow()
+    {
+        // Act
+        var act = () => new DbIdempotencyAdapter(null!, _logger);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Constructor_WithNullLogger_ShouldThrow()
+    {
+        // Act
+        var act = () => new DbIdempotencyAdapter(_dbContext, null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task TryAcquireAsync_WithCancellation_ShouldRespectCancellation()
+    {
+        // Arrange
+        var key = IdempotencyKey.Create("cancel-test-id");
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act
+        var act = () => _sut.TryAcquireAsync(key, cancellationToken: cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task ExistsAsync_WithCancellation_ShouldRespectCancellation()
+    {
+        // Arrange
+        var key = IdempotencyKey.Create("cancel-exists-id");
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act
+        var act = () => _sut.ExistsAsync(key, cancellationToken: cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task ReleaseAsync_WithCancellation_ShouldRespectCancellation()
+    {
+        // Arrange
+        var key = IdempotencyKey.Create("cancel-release-id");
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act
+        var act = () => _sut.ReleaseAsync(key, cancellationToken: cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task CleanupExpiredAsync_WithCancellation_ShouldRespectCancellation()
+    {
+        // Arrange
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act
+        var act = () => _sut.CleanupExpiredAsync(cancellationToken: cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
 }

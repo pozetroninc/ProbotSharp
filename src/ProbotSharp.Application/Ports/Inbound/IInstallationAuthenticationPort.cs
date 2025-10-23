@@ -3,7 +3,7 @@
 
 using ProbotSharp.Application.Models;
 using ProbotSharp.Domain.ValueObjects;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Application.Ports.Inbound;
 

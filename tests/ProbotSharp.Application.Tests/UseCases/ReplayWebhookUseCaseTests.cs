@@ -9,7 +9,7 @@ using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Application.UseCases;
 using ProbotSharp.Domain.Entities;
 using ProbotSharp.Domain.ValueObjects;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Application.Tests.UseCases;
 
@@ -27,13 +27,14 @@ public sealed class ReplayWebhookUseCaseTests
     public async Task ReplayAsync_WhenDeliveryAlreadyPersisted_ShouldReturnSuccessWithoutProcessing()
     {
         var command = CreateReplayCommand();
+        var deliveryResult = WebhookDelivery.Create(
+            command.Command.DeliveryId,
+            command.Command.EventName,
+            DateTimeOffset.UtcNow,
+            command.Command.Payload,
+            command.Command.InstallationId);
         _storage.GetAsync(command.Command.DeliveryId, Arg.Any<CancellationToken>())
-            .Returns(Result<WebhookDelivery?>.Success(WebhookDelivery.Create(
-                command.Command.DeliveryId,
-                command.Command.EventName,
-                DateTimeOffset.UtcNow,
-                command.Command.Payload,
-                command.Command.InstallationId)));
+            .Returns(Result<WebhookDelivery?>.Success(deliveryResult.Value));
 
         var result = await CreateSut().ReplayAsync(command);
 

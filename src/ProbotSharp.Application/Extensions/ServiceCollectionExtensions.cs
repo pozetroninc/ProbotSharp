@@ -36,7 +36,7 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(assembly);
 
-        return services.AddProbotHandlers(assembly);
+        return services.AddProbotHandlers([assembly]);
     }
 
     /// <summary>

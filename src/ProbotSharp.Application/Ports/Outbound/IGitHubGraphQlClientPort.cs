@@ -1,7 +1,7 @@
 // Copyright (c) ProbotSharp Contributors.
 // Licensed under the MIT License.
 
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Application.Ports.Outbound;
 

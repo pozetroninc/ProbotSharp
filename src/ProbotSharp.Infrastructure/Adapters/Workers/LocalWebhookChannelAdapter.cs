@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Outbound;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Infrastructure.Adapters.Workers;
 
