@@ -16,9 +16,81 @@ permissions:
   checks: write
 
 jobs:
-  coverage-analysis:
-    name: Coverage Analysis
+  detect-changes:
+    name: Detect File Changes
     runs-on: ubuntu-latest
+    outputs:
+      skip_coverage: ${{ steps.file_changes.outputs.skip_coverage }}
+      change_type: ${{ steps.file_changes.outputs.change_type }}
+      src_files: ${{ steps.file_changes.outputs.src_files }}
+      test_files: ${{ steps.file_changes.outputs.test_files }}
+      config_files: ${{ steps.file_changes.outputs.config_files }}
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for merge detection
+
+      - name: Detect File Changes
+        id: file_changes
+        run: |
+          # Fetch base branch for comparison
+          git fetch origin ${{ github.base_ref }}
+
+          # Get list of changed files
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+
+          # Count different types of changes
+          SRC_FILES=$(echo "$CHANGED_FILES" | grep -E '^src/.*\.cs$' | grep -v -E '(Migrations/|\.Designer\.cs$|DbContextModelSnapshot\.cs$)' | wc -l || echo "0")
+          TEST_FILES=$(echo "$CHANGED_FILES" | grep -E '^tests/.*\.cs$' | wc -l || echo "0")
+          CONFIG_FILES=$(echo "$CHANGED_FILES" | grep -E '\.(json|csproj|sln|props|targets)$' | wc -l || echo "0")
+          WORKFLOW_FILES=$(echo "$CHANGED_FILES" | grep -E '\.github/workflows/.*\.yml$' | wc -l || echo "0")
+          DOC_FILES=$(echo "$CHANGED_FILES" | grep -E '\.(md|txt)$' | wc -l || echo "0")
+
+          # Check if this is a merge commit
+          IS_MERGE=$(git rev-list --merges HEAD^..HEAD | wc -l)
+
+          # Determine change type
+          if [ "$SRC_FILES" -eq 0 ] && [ "$TEST_FILES" -eq 0 ]; then
+            CHANGE_TYPE="config-only"
+            SKIP_COVERAGE="true"
+            echo "::notice::No source or test code changes detected. Coverage check will be skipped."
+          elif [ "$SRC_FILES" -eq 0 ] && [ "$TEST_FILES" -gt 0 ]; then
+            CHANGE_TYPE="test-only"
+            SKIP_COVERAGE="informational"
+            echo "::notice::Only test files changed. Coverage check will be informational."
+          elif [ "$IS_MERGE" -gt 0 ] && [ "$SRC_FILES" -lt 3 ]; then
+            CHANGE_TYPE="merge-commit"
+            SKIP_COVERAGE="informational"
+            echo "::notice::Merge commit with minimal code changes. Coverage check will be informational."
+          else
+            CHANGE_TYPE="source-code"
+            SKIP_COVERAGE="false"
+            echo "::notice::Source code changes detected ($SRC_FILES files). Full coverage check enabled."
+          fi
+
+          # Output variables
+          echo "src_files=${SRC_FILES}" >> $GITHUB_OUTPUT
+          echo "test_files=${TEST_FILES}" >> $GITHUB_OUTPUT
+          echo "config_files=${CONFIG_FILES}" >> $GITHUB_OUTPUT
+          echo "change_type=${CHANGE_TYPE}" >> $GITHUB_OUTPUT
+          echo "skip_coverage=${SKIP_COVERAGE}" >> $GITHUB_OUTPUT
+
+          # Log summary
+          echo "📊 Change Detection Summary:"
+          echo "  Source files: ${SRC_FILES}"
+          echo "  Test files: ${TEST_FILES}"
+          echo "  Config files: ${CONFIG_FILES}"
+          echo "  Workflow files: ${WORKFLOW_FILES}"
+          echo "  Documentation: ${DOC_FILES}"
+          echo "  Change type: ${CHANGE_TYPE}"
+          echo "  Coverage enforcement: ${SKIP_COVERAGE}"
+
+  run-coverage:
+    name: Run Coverage Analysis
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.skip_coverage != 'true'
     steps:
       - name: Checkout PR
         uses: actions/checkout@v4
@@ -118,6 +190,17 @@ jobs:
             "-classfilters:+*;-*Migrations*;-*DbContextModelSnapshot"
         continue-on-error: true
 
+      - name: Upload Coverage Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports-${{ github.event.pull_request.number }}
+          path: |
+            coverage-report-pr/
+            coverage-report-base/
+            coverage-merged/
+            coverage-pr/
+          retention-days: 30
+
       - name: Upload Summary.json for debugging
         if: always()
         uses: actions/upload-artifact@v4
@@ -128,26 +211,132 @@ jobs:
             coverage-report-base/Summary.json
           retention-days: 7
 
-      # Compare and generate PR comment
+  report-coverage:
+    name: Report Coverage Results
+    runs-on: ubuntu-latest
+    needs: [detect-changes, run-coverage]
+    if: always()
+    steps:
+      - name: Checkout PR
+        if: needs.detect-changes.outputs.skip_coverage != 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        if: needs.detect-changes.outputs.skip_coverage != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install jq for JSON parsing
+        if: needs.detect-changes.outputs.skip_coverage != 'true'
+        run: |
+          if ! command -v jq &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y jq
+          fi
+          jq --version
+
+      - name: Install diff-cover
+        if: needs.detect-changes.outputs.skip_coverage != 'true'
+        run: pip install diff-cover
+
+      - name: Download Coverage Artifacts
+        if: needs.detect-changes.outputs.skip_coverage != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-reports-${{ github.event.pull_request.number }}
+
+      - name: Analyze PR Diff Coverage
+        if: needs.detect-changes.outputs.skip_coverage != 'true'
+        id: diff_coverage
+        run: |
+          # Fetch base branch for diff-cover comparison
+          git fetch origin ${{ github.base_ref }}
+
+          # Run diff-cover against base branch to get coverage of changed lines only
+          diff-cover coverage-merged/Cobertura.xml \
+            --compare-branch=origin/${{ github.base_ref }} \
+            --json-report coverage-diff.json \
+            --html-report coverage-diff.html || true
+
+          # Extract diff coverage metrics (only changed lines)
+          if [ -f coverage-diff.json ]; then
+            DIFF_LINE=$(jq -r '.totals.line_coverage // 0' coverage-diff.json)
+            DIFF_BRANCH=$(jq -r '.totals.branch_coverage // 0' coverage-diff.json)
+            DIFF_LINES_CHANGED=$(jq -r '.totals.num_changed_lines // 0' coverage-diff.json)
+            DIFF_LINES_COVERED=$(jq -r '.totals.num_covered_lines // 0' coverage-diff.json)
+          else
+            echo "::warning::Failed to generate diff coverage, will skip diff check"
+            DIFF_LINE="N/A"
+            DIFF_BRANCH="N/A"
+            DIFF_LINES_CHANGED="0"
+            DIFF_LINES_COVERED="0"
+          fi
+
+          echo "diff_line=${DIFF_LINE}" >> $GITHUB_OUTPUT
+          echo "diff_branch=${DIFF_BRANCH}" >> $GITHUB_OUTPUT
+          echo "diff_lines_changed=${DIFF_LINES_CHANGED}" >> $GITHUB_OUTPUT
+          echo "diff_lines_covered=${DIFF_LINES_COVERED}" >> $GITHUB_OUTPUT
+
+          # Determine diff coverage status (this is what blocks for source-code changes)
+          MIN_DIFF_LINE=80
+          MIN_DIFF_BRANCH=75
+
+          if [ "$DIFF_LINE" = "N/A" ]; then
+            echo "diff_status=warning" >> $GITHUB_OUTPUT
+            echo "diff_status_msg=⚠️ Unable to calculate diff coverage" >> $GITHUB_OUTPUT
+          elif [ "$DIFF_LINES_CHANGED" = "0" ]; then
+            echo "diff_status=success" >> $GITHUB_OUTPUT
+            echo "diff_status_msg=ℹ️ No code changes detected" >> $GITHUB_OUTPUT
+          elif (( $(echo "$DIFF_LINE < $MIN_DIFF_LINE" | bc -l) )); then
+            echo "diff_status=failure" >> $GITHUB_OUTPUT
+            echo "diff_status_msg=❌ Changed lines coverage below ${MIN_DIFF_LINE}% threshold" >> $GITHUB_OUTPUT
+          elif (( $(echo "$DIFF_BRANCH < $MIN_DIFF_BRANCH" | bc -l) )); then
+            echo "diff_status=failure" >> $GITHUB_OUTPUT
+            echo "diff_status_msg=❌ Changed branches coverage below ${MIN_DIFF_BRANCH}% threshold" >> $GITHUB_OUTPUT
+          else
+            echo "diff_status=success" >> $GITHUB_OUTPUT
+            echo "diff_status_msg=✅ Changed code meets coverage requirements" >> $GITHUB_OUTPUT
+          fi
+
       - name: Generate Coverage Comparison
         id: coverage_comparison
         run: |
+          CHANGE_TYPE="${{ needs.detect-changes.outputs.change_type }}"
+          SKIP_COVERAGE="${{ needs.detect-changes.outputs.skip_coverage }}"
+          SRC_FILES="${{ needs.detect-changes.outputs.src_files }}"
+          TEST_FILES="${{ needs.detect-changes.outputs.test_files }}"
+          CONFIG_FILES="${{ needs.detect-changes.outputs.config_files }}"
+
+          # Handle edge case: No source code changes
+          if [ "$SKIP_COVERAGE" = "true" ]; then
+            echo "pr_line=N/A" >> $GITHUB_OUTPUT
+            echo "pr_branch=N/A" >> $GITHUB_OUTPUT
+            echo "base_line=N/A" >> $GITHUB_OUTPUT
+            echo "base_branch=N/A" >> $GITHUB_OUTPUT
+            echo "line_delta=0%" >> $GITHUB_OUTPUT
+            echo "branch_delta=0%" >> $GITHUB_OUTPUT
+            echo "line_emoji=ℹ️" >> $GITHUB_OUTPUT
+            echo "branch_emoji=ℹ️" >> $GITHUB_OUTPUT
+            echo "project_status=skipped" >> $GITHUB_OUTPUT
+            echo "project_status_msg=✅ **No source code changes detected** - Coverage check skipped" >> $GITHUB_OUTPUT
+            echo "change_summary=**Change Summary:** ${CONFIG_FILES} config file(s) changed, no source code modifications" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           # Extract PR coverage using jq for reliable JSON parsing
-          # ReportGenerator's Summary.json has coverage metrics nested under .summary object
-          # Values are stored as percentages (0-100), not decimal rates (0.0-1.0)
           if [ -f coverage-report-pr/Summary.json ]; then
             echo "::debug::PR Summary.json structure:"
             jq '.summary | {linecoverage, branchcoverage, methodcoverage}' coverage-report-pr/Summary.json || echo "::warning::Failed to parse PR JSON"
 
-            # Extract coverage values from .summary object
             PR_LINE=$(jq -r '.summary.linecoverage // 0' coverage-report-pr/Summary.json 2>/dev/null)
             PR_BRANCH=$(jq -r '.summary.branchcoverage // 0' coverage-report-pr/Summary.json 2>/dev/null)
             PR_METHOD=$(jq -r '.summary.methodcoverage // 0' coverage-report-pr/Summary.json 2>/dev/null)
 
-            # Validate extracted values
             if [ -z "$PR_LINE" ] || [ "$PR_LINE" = "null" ]; then
               echo "::error::Failed to extract PR line coverage from Summary.json"
-              echo "::error::Available keys: $(jq 'keys' coverage-report-pr/Summary.json 2>/dev/null)"
               PR_LINE="0"
             fi
 
@@ -159,7 +348,7 @@ jobs:
             PR_METHOD="0"
           fi
 
-          # Extract base coverage with same approach
+          # Extract base coverage using jq
           if [ -f coverage-report-base/Summary.json ]; then
             echo "::debug::Base Summary.json structure:"
             jq '.summary | {linecoverage, branchcoverage, methodcoverage}' coverage-report-base/Summary.json || echo "::warning::Failed to parse base JSON"
@@ -170,16 +359,17 @@ jobs:
 
             if [ -z "$BASE_LINE" ] || [ "$BASE_LINE" = "null" ]; then
               echo "::error::Failed to extract base line coverage from Summary.json"
-              echo "::error::Available keys: $(jq 'keys' coverage-report-base/Summary.json 2>/dev/null)"
               BASE_LINE="0"
             fi
 
             echo "::notice::Base Coverage - Line: ${BASE_LINE}%, Branch: ${BASE_BRANCH}%, Method: ${BASE_METHOD}%"
+            BASE_AVAILABLE="true"
           else
-            echo "::error::Base branch coverage report not found - cannot compare"
-            BASE_LINE="0"
-            BASE_BRANCH="0"
-            BASE_METHOD="0"
+            echo "::warning::Base branch coverage report not found - using absolute thresholds only"
+            BASE_LINE="${PR_LINE}"
+            BASE_BRANCH="${PR_BRANCH}"
+            BASE_METHOD="${PR_METHOD}"
+            BASE_AVAILABLE="false"
           fi
 
           # Calculate deltas
@@ -220,24 +410,34 @@ jobs:
           echo "line_emoji=${LINE_EMOJI}" >> $GITHUB_OUTPUT
           echo "branch_emoji=${BRANCH_EMOJI}" >> $GITHUB_OUTPUT
 
-          # Define minimum thresholds
+          # Define minimum thresholds for project-wide coverage
           MIN_LINE_COVERAGE=75
           MIN_BRANCH_COVERAGE=70
 
-          # Informational project-wide status - does NOT block, only for display
+          # Generate change summary
+          if [ "$CHANGE_TYPE" = "test-only" ]; then
+            CHANGE_SUMMARY="**Change Summary:** ${TEST_FILES} test file(s) modified, no production code changes"
+          elif [ "$CHANGE_TYPE" = "merge-commit" ]; then
+            CHANGE_SUMMARY="**Change Summary:** Merge commit with ${SRC_FILES} source file(s) and ${TEST_FILES} test file(s) modified"
+          else
+            CHANGE_SUMMARY="**Change Summary:** ${SRC_FILES} source file(s) and ${TEST_FILES} test file(s) modified"
+          fi
+          echo "change_summary=${CHANGE_SUMMARY}" >> $GITHUB_OUTPUT
+
+          # Informational project-wide status - does NOT block
           if (( $(echo "$PR_LINE < $MIN_LINE_COVERAGE" | bc -l) )) || (( $(echo "$PR_BRANCH < $MIN_BRANCH_COVERAGE" | bc -l) )); then
             echo "project_status=below_target" >> $GITHUB_OUTPUT
             echo "project_status_msg=⚠️ Project-wide coverage below targets (${MIN_LINE_COVERAGE}% line, ${MIN_BRANCH_COVERAGE}% branch)" >> $GITHUB_OUTPUT
             echo "project_emoji=⚠️" >> $GITHUB_OUTPUT
-          elif (( $(echo "$LINE_DELTA < -5" | bc -l) )) || (( $(echo "$BRANCH_DELTA < -5" | bc -l) )); then
+          elif [ "$BASE_AVAILABLE" = "true" ] && (( $(echo "$LINE_DELTA < -5" | bc -l) )) || (( $(echo "$BRANCH_DELTA < -5" | bc -l) )); then
             echo "project_status=significant_decrease" >> $GITHUB_OUTPUT
             echo "project_status_msg=📉 Significant coverage decrease detected" >> $GITHUB_OUTPUT
             echo "project_emoji=📉" >> $GITHUB_OUTPUT
-          elif (( $(echo "$LINE_DELTA < 0" | bc -l) )) || (( $(echo "$BRANCH_DELTA < 0" | bc -l) )); then
+          elif [ "$BASE_AVAILABLE" = "true" ] && (( $(echo "$LINE_DELTA < 0" | bc -l) )) || (( $(echo "$BRANCH_DELTA < 0" | bc -l) )); then
             echo "project_status=slight_decrease" >> $GITHUB_OUTPUT
             echo "project_status_msg=➖ Coverage decreased slightly" >> $GITHUB_OUTPUT
             echo "project_emoji=➖" >> $GITHUB_OUTPUT
-          elif (( $(echo "$LINE_DELTA > 0" | bc -l) )) && (( $(echo "$BRANCH_DELTA > 0" | bc -l) )); then
+          elif [ "$BASE_AVAILABLE" = "true" ] && (( $(echo "$LINE_DELTA > 0" | bc -l) )) && (( $(echo "$BRANCH_DELTA > 0" | bc -l) )); then
             echo "project_status=improved" >> $GITHUB_OUTPUT
             echo "project_status_msg=📈 Coverage improved!" >> $GITHUB_OUTPUT
             echo "project_emoji=📈" >> $GITHUB_OUTPUT
@@ -247,56 +447,75 @@ jobs:
             echo "project_emoji=➡️" >> $GITHUB_OUTPUT
           fi
 
-      - name: Analyze PR Diff Coverage
-        id: diff_coverage
-        run: |
-          # Run diff-cover against base branch to get coverage of changed lines only
-          diff-cover coverage-merged/Cobertura.xml \
-            --compare-branch=origin/${{ github.base_ref }} \
-            --json-report coverage-diff.json \
-            --html-report coverage-diff.html || true
+      - name: Upload Diff Coverage HTML Report
+        if: needs.detect-changes.outputs.skip_coverage != 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-diff-html-pr-${{ github.event.pull_request.number }}
+          path: coverage-diff.html
+          retention-days: 30
 
-          # Extract diff coverage metrics (only changed lines)
-          if [ -f coverage-diff.json ]; then
-            DIFF_LINE=$(jq -r '.totals.line_coverage // 0' coverage-diff.json)
-            DIFF_BRANCH=$(jq -r '.totals.branch_coverage // 0' coverage-diff.json)
-            DIFF_LINES_CHANGED=$(jq -r '.totals.num_changed_lines // 0' coverage-diff.json)
-            DIFF_LINES_COVERED=$(jq -r '.totals.num_covered_lines // 0' coverage-diff.json)
-          else
-            echo "::warning::Failed to generate diff coverage, will skip diff check"
-            DIFF_LINE="N/A"
-            DIFF_BRANCH="N/A"
-            DIFF_LINES_CHANGED="0"
-            DIFF_LINES_COVERED="0"
-          fi
+      - name: Comment PR with Coverage (Config-Only)
+        if: needs.detect-changes.outputs.skip_coverage == 'true'
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          message: |
+            ## 📊 Coverage Report
 
-          echo "diff_line=${DIFF_LINE}" >> $GITHUB_OUTPUT
-          echo "diff_branch=${DIFF_BRANCH}" >> $GITHUB_OUTPUT
-          echo "diff_lines_changed=${DIFF_LINES_CHANGED}" >> $GITHUB_OUTPUT
-          echo "diff_lines_covered=${DIFF_LINES_COVERED}" >> $GITHUB_OUTPUT
+            ${{ steps.coverage_comparison.outputs.project_status_msg }}
 
-          # Determine diff coverage status (this is what blocks)
-          MIN_DIFF_LINE=80
-          MIN_DIFF_BRANCH=75
+            ${{ steps.coverage_comparison.outputs.change_summary }}
 
-          if [ "$DIFF_LINE" = "N/A" ]; then
-            echo "diff_status=warning" >> $GITHUB_OUTPUT
-            echo "diff_status_msg=⚠️ Unable to calculate diff coverage" >> $GITHUB_OUTPUT
-          elif [ "$DIFF_LINES_CHANGED" = "0" ]; then
-            echo "diff_status=success" >> $GITHUB_OUTPUT
-            echo "diff_status_msg=ℹ️ No code changes detected" >> $GITHUB_OUTPUT
-          elif (( $(echo "$DIFF_LINE < $MIN_DIFF_LINE" | bc -l) )); then
-            echo "diff_status=failure" >> $GITHUB_OUTPUT
-            echo "diff_status_msg=❌ Changed lines coverage below ${MIN_DIFF_LINE}% threshold" >> $GITHUB_OUTPUT
-          elif (( $(echo "$DIFF_BRANCH < $MIN_DIFF_BRANCH" | bc -l) )); then
-            echo "diff_status=failure" >> $GITHUB_OUTPUT
-            echo "diff_status_msg=❌ Changed branches coverage below ${MIN_DIFF_BRANCH}% threshold" >> $GITHUB_OUTPUT
-          else
-            echo "diff_status=success" >> $GITHUB_OUTPUT
-            echo "diff_status_msg=✅ Changed code meets coverage requirements" >> $GITHUB_OUTPUT
-          fi
+            <details>
+            <summary>Edge Case Handling</summary>
 
-      - name: Comment PR with Coverage
+            - **Config-only changes**: Coverage check skipped automatically
+            - **Test-only changes**: Coverage check runs in informational mode (non-blocking)
+            - **Merge commits**: Relaxed enforcement for conflict resolution
+            - **Missing base coverage**: Falls back to absolute threshold checking
+
+            </details>
+
+            ---
+            *Coverage report generated by [ProbotSharp CI](.github/workflows/coverage-report.yml)*
+
+      - name: Comment PR with Coverage (Test-Only or Merge)
+        if: needs.detect-changes.outputs.skip_coverage == 'informational'
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          message: |
+            ## 📊 Coverage Report
+
+            ### ℹ️ Informational Mode
+
+            ${{ needs.detect-changes.outputs.change_type == 'test-only' && '**Test-only changes** - Coverage check is informational' || '**Merge commit** - Relaxed enforcement' }}
+
+            ${{ steps.coverage_comparison.outputs.change_summary }}
+
+            ### Project-Wide Coverage (informational only)
+
+            ${{ steps.coverage_comparison.outputs.project_emoji }} ${{ steps.coverage_comparison.outputs.project_status_msg }}
+
+            | Metric | Base Branch | This PR | Delta | Target |
+            |--------|-------------|---------|-------|--------|
+            | **Line Coverage** | ${{ steps.coverage_comparison.outputs.base_line }}% | ${{ steps.coverage_comparison.outputs.pr_line }}% | ${{ steps.coverage_comparison.outputs.line_emoji }} ${{ steps.coverage_comparison.outputs.line_delta }} | 75% |
+            | **Branch Coverage** | ${{ steps.coverage_comparison.outputs.base_branch }}% | ${{ steps.coverage_comparison.outputs.pr_branch }}% | ${{ steps.coverage_comparison.outputs.branch_emoji }} ${{ steps.coverage_comparison.outputs.branch_delta }} | 70% |
+
+            <details>
+            <summary>Edge Case Handling</summary>
+
+            - **Config-only changes**: Coverage check skipped automatically
+            - **Test-only changes**: Coverage check runs in informational mode (non-blocking)
+            - **Merge commits**: Relaxed enforcement for conflict resolution
+            - **Missing base coverage**: Falls back to absolute threshold checking
+
+            </details>
+
+            ---
+            *Coverage report generated by [ProbotSharp CI](.github/workflows/coverage-report.yml)*
+
+      - name: Comment PR with Coverage (Source Code)
+        if: needs.detect-changes.outputs.skip_coverage == 'false'
         uses: thollander/actions-comment-pull-request@v2
         with:
           message: |
@@ -319,10 +538,12 @@ jobs:
 
             ${{ steps.coverage_comparison.outputs.project_emoji }} ${{ steps.coverage_comparison.outputs.project_status_msg }}
 
+            ${{ steps.coverage_comparison.outputs.change_summary }}
+
             | Metric | Base Branch | This PR | Delta | Target |
             |--------|-------------|---------|-------|--------|
-            | **Line Coverage** | ${{ steps.coverage_comparison.outputs.base_line }}% | ${{ steps.coverage_comparison.outputs.pr_line }}% | ${{ steps.coverage_comparison.outputs.line_emoji }} ${{ steps.coverage_comparison.outputs.line_delta }} | 80% |
-            | **Branch Coverage** | ${{ steps.coverage_comparison.outputs.base_branch }}% | ${{ steps.coverage_comparison.outputs.pr_branch }}% | ${{ steps.coverage_comparison.outputs.branch_emoji }} ${{ steps.coverage_comparison.outputs.branch_delta }} | 75% |
+            | **Line Coverage** | ${{ steps.coverage_comparison.outputs.base_line }}% | ${{ steps.coverage_comparison.outputs.pr_line }}% | ${{ steps.coverage_comparison.outputs.line_emoji }} ${{ steps.coverage_comparison.outputs.line_delta }} | 75% |
+            | **Branch Coverage** | ${{ steps.coverage_comparison.outputs.base_branch }}% | ${{ steps.coverage_comparison.outputs.pr_branch }}% | ${{ steps.coverage_comparison.outputs.branch_emoji }} ${{ steps.coverage_comparison.outputs.branch_delta }} | 70% |
 
             <details>
             <summary>📋 Coverage Targets by Layer</summary>
@@ -336,38 +557,59 @@ jobs:
 
             </details>
 
+            <details>
+            <summary>Edge Case Handling</summary>
+
+            - **Config-only changes**: Coverage check skipped automatically
+            - **Test-only changes**: Coverage check runs in informational mode (non-blocking)
+            - **Merge commits**: Relaxed enforcement for conflict resolution
+            - **Missing base coverage**: Falls back to absolute threshold checking
+
+            </details>
+
             ---
             *Coverage analysis by [diff-cover](https://github.com/Bachmann1234/diff_cover) | [Full report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*
-
-      - name: Upload PR Coverage Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report-pr-${{ github.event.pull_request.number }}
-          path: coverage-report-pr/
-          retention-days: 30
-
-      - name: Upload Diff Coverage HTML Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-diff-html-pr-${{ github.event.pull_request.number }}
-          path: coverage-diff.html
-          retention-days: 30
 
       - name: Set Coverage Status Check
         if: always()
         run: |
+          SKIP_COVERAGE="${{ needs.detect-changes.outputs.skip_coverage }}"
+          CHANGE_TYPE="${{ needs.detect-changes.outputs.change_type }}"
           DIFF_STATUS="${{ steps.diff_coverage.outputs.diff_status }}"
           DIFF_LINE="${{ steps.diff_coverage.outputs.diff_line }}"
           DIFF_BRANCH="${{ steps.diff_coverage.outputs.diff_branch }}"
           PROJECT_STATUS="${{ steps.coverage_comparison.outputs.project_status }}"
+          PR_LINE="${{ steps.coverage_comparison.outputs.pr_line }}"
+          PR_BRANCH="${{ steps.coverage_comparison.outputs.pr_branch }}"
 
           echo "=== Coverage Gate Results ==="
+
+          # Handle edge cases first
+          if [ "$SKIP_COVERAGE" = "true" ]; then
+            echo "Coverage check skipped - no source code changes detected"
+            echo "::notice::Coverage check skipped - no source code changes detected"
+            exit 0
+          fi
+
+          if [ "$SKIP_COVERAGE" = "informational" ]; then
+            if [ "$CHANGE_TYPE" = "test-only" ]; then
+              echo "Coverage check informational only - test-only changes"
+              echo "::notice::Coverage check informational only - test-only changes. Line: ${PR_LINE}%, Branch: ${PR_BRANCH}%"
+            elif [ "$CHANGE_TYPE" = "merge-commit" ]; then
+              echo "Coverage check informational - merge commit with minimal changes"
+              echo "::notice::Coverage check informational - merge commit with minimal changes. Line: ${PR_LINE}%, Branch: ${PR_BRANCH}%"
+            fi
+            exit 0
+          fi
+
+          # Normal enforcement for source code changes - use diff coverage as gate
           echo "PR Diff Coverage (BLOCKING): ${DIFF_STATUS}"
           echo "  - Line: ${DIFF_LINE}% (min: 80%)"
           echo "  - Branch: ${DIFF_BRANCH}% (min: 75%)"
           echo ""
           echo "Project-Wide Status (INFORMATIONAL): ${PROJECT_STATUS}"
+          echo "  - Line: ${PR_LINE}%"
+          echo "  - Branch: ${PR_BRANCH}%"
           echo ""
 
           # Only block based on diff coverage
@@ -393,8 +635,3 @@ jobs:
               echo "::notice::Great job! Project-wide coverage improved 🎉"
               ;;
           esac
-
-          # Verify base report exists (sanity check)
-          if [ ! -f coverage-report-base/Summary.json ]; then
-            echo "::warning::Base branch coverage report not found - diff comparison may be incomplete"
-          fi
