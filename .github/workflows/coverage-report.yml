@@ -362,7 +362,6 @@ jobs:
           DIFF_BRANCH="${{ steps.diff_coverage.outputs.diff_branch }}"
           PROJECT_STATUS="${{ steps.coverage_comparison.outputs.project_status }}"
 
-<<<<<<< HEAD
           echo "=== Coverage Gate Results ==="
           echo "PR Diff Coverage (BLOCKING): ${DIFF_STATUS}"
           echo "  - Line: ${DIFF_LINE}% (min: 80%)"
@@ -375,11 +374,6 @@ jobs:
           if [ "$DIFF_STATUS" = "failure" ]; then
             echo "::error::PR diff coverage check failed. Changed lines coverage: Line ${DIFF_LINE}%, Branch ${DIFF_BRANCH}%"
             echo "::error::Your changed code must have at least 80% line coverage and 75% branch coverage."
-=======
-          # Enforce absolute thresholds
-          if [ "$STATUS" = "failure" ]; then
-            echo "::error::Coverage check failed. Line: ${PR_LINE}% (min: 75%), Branch: ${PR_BRANCH}% (min: 70%)"
->>>>>>> origin/main
             exit 1
           elif [ "$DIFF_STATUS" = "warning" ]; then
             echo "::warning::Unable to calculate diff coverage - manual review recommended"
