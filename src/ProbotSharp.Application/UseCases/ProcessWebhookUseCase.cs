@@ -8,9 +8,11 @@ using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Inbound;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Application.Services;
+using ProbotSharp.Application.WorkflowStates;
+using ProbotSharp.Domain.Abstractions;
 using ProbotSharp.Domain.Entities;
 using ProbotSharp.Domain.Services;
-using ProbotSharp.Domain.Abstractions;
+using ProbotSharp.Domain.ValueObjects;
 
 namespace ProbotSharp.Application.UseCases;
 
@@ -22,6 +24,7 @@ namespace ProbotSharp.Application.UseCases;
 public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
 {
     private readonly IWebhookStoragePort _storage;
+    private readonly IIdempotencyPort _idempotency;
     private readonly IClockPort _clock;
     private readonly IUnitOfWorkPort _unitOfWork;
     private readonly IAppConfigurationPort _appConfig;
@@ -36,6 +39,7 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
     /// Initializes a new instance of the <see cref="ProcessWebhookUseCase"/> class.
     /// </summary>
     /// <param name="storage">The webhook storage port for persisting deliveries.</param>
+    /// <param name="idempotency">The idempotency port for distributed locking.</param>
     /// <param name="clock">The clock port for timestamp generation.</param>
     /// <param name="unitOfWork">The unit of work port for transaction management.</param>
     /// <param name="appConfig">The application configuration port for retrieving webhook secret.</param>
@@ -47,6 +51,7 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
     /// <param name="serviceProvider">The service provider for dependency resolution.</param>
     public ProcessWebhookUseCase(
         IWebhookStoragePort storage,
+        IIdempotencyPort idempotency,
         IClockPort clock,
         IUnitOfWorkPort unitOfWork,
         IAppConfigurationPort appConfig,
@@ -58,6 +63,7 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
         IServiceProvider serviceProvider)
     {
         this._storage = storage;
+        this._idempotency = idempotency;
         this._clock = clock;
         this._unitOfWork = unitOfWork;
         this._appConfig = appConfig;
@@ -70,7 +76,8 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
     }
 
     /// <summary>
-    /// Processes a GitHub webhook delivery asynchronously.
+    /// Processes a webhook delivery using a functional pipeline.
+    /// Pipeline: UntrustedWebhook → ValidatedWebhook → VerifiedUniqueWebhook → PersistedWebhook → RouteToHandlers.
     /// </summary>
     /// <param name="command">The command containing webhook delivery information.</param>
     /// <param name="cancellationToken">Cancellation token for async operation.</param>
@@ -108,120 +115,70 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
 
             var result = await this._unitOfWork.ExecuteAsync(async ct =>
             {
-                // Step 1: Validate webhook signature (security first)
-                this._tracing.AddEvent("webhook.validate_signature");
-                var secretResult = await this._appConfig.GetWebhookSecretAsync(ct).ConfigureAwait(false);
-                if (!secretResult.IsSuccess)
-                {
-                    return secretResult.Error is null
-                        ? Result.Failure("webhook_secret_unavailable", "Unable to retrieve webhook secret for signature validation")
-                        : Result.Failure(secretResult.Error.Value);
-                }
+                // Railway-oriented pipeline: Compose all steps with automatic short-circuiting
+                var pipelineResult = await this.ValidateSignatureAsync(new UntrustedWebhook(command), ct)
+                    .TapSuccessAsync(_ =>
+                    {
+                        this._tracing.AddEvent("webhook.signature_validated");
+                        return Task.CompletedTask;
+                    })
+                    .TapFailureAsync(error =>
+                    {
+                        if (error.Code == "webhook_signature_invalid")
+                        {
+                            this._metrics.IncrementCounter(
+                                "webhook.signature_invalid",
+                                1,
+                                [new("event", command.EventName.Value)]);
+                        }
+                        return Task.CompletedTask;
+                    })
+                    .BindAsync(validated => this.CheckForDuplicateAsync(validated, ct))
+                    .TapFailureAsync(error =>
+                    {
+                        if (error.Code == "webhook_duplicate_delivery")
+                        {
+                            this._tracing.AddEvent("webhook.duplicate_delivery");
+                            this._metrics.IncrementCounter(
+                                "webhook.duplicate",
+                                1,
+                                [new("event", command.EventName.Value)]);
+                        }
+                        return Task.CompletedTask;
+                    })
+                    .BindAsync(unique => this.PersistDeliveryAsync(unique, ct))
+                    .TapSuccessAsync(_ =>
+                    {
+                        this._tracing.AddEvent("webhook.delivery_persisted");
+                        this._metrics.IncrementCounter(
+                            "webhook.processed",
+                            1,
+                            [new("event", command.EventName.Value)]);
+                        return Task.CompletedTask;
+                    })
+                    .BindAsync(persisted => this.RouteToHandlersAsync(persisted, ct))
+                    .TapSuccessAsync(_ =>
+                    {
+                        this._tracing.AddEvent("webhook.handlers_completed");
+                        return Task.CompletedTask;
+                    })
+                    .ConfigureAwait(false);
 
-                var secret = secretResult.Value;
-                if (string.IsNullOrWhiteSpace(secret))
-                {
-                    return Result.Failure("webhook_secret_empty", "Webhook secret is not configured");
-                }
-
-                var isSignatureValid = this._signatureValidator.IsSignatureValid(
-                    command.RawPayload,
-                    secret,
-                    command.Signature.Value);
-
-                if (!isSignatureValid)
-                {
-                    this._tracing.AddEvent("webhook.signature_invalid");
-                    this._metrics.IncrementCounter(
-                        "webhook.signature_invalid",
-                        1,
-                        [
-                            new("event", command.EventName.Value),
-                        ]);
-                    return Result.Failure("webhook_signature_invalid", "Webhook signature validation failed");
-                }
-
-                // Step 2: Check for duplicate delivery (idempotency)
-                this._tracing.AddEvent("webhook.check_duplicate");
-                var existingResult = await this._storage.GetAsync(command.DeliveryId, ct).ConfigureAwait(false);
-                if (!existingResult.IsSuccess)
-                {
-                    return existingResult.Error is null
-                        ? Result.Failure("storage_read_failed", "Unable to check for existing webhook delivery")
-                        : Result.Failure(existingResult.Error.Value);
-                }
-
-                if (existingResult.Value is not null)
+                // Handle the special case: duplicate delivery is a success scenario
+                if (!pipelineResult.IsSuccess &&
+                    pipelineResult.Error?.Code == "webhook_duplicate_delivery")
                 {
                     // Duplicate delivery detected - return success (idempotent operation)
-                    this._tracing.AddEvent("webhook.duplicate_delivery");
-                    this._metrics.IncrementCounter(
-                        "webhook.duplicate",
-                        1,
-                        [
-                            new("event", command.EventName.Value),
-                        ]);
                     return Result.Success();
                 }
 
-                // Step 3: Process and save webhook delivery
-                this._tracing.AddEvent("webhook.save_delivery");
-                var deliveryResult = WebhookDelivery.Create(
-                    command.DeliveryId,
-                    command.EventName,
-                    this._clock.UtcNow,
-                    command.Payload,
-                    command.InstallationId);
-
-                if (!deliveryResult.IsSuccess)
-                {
-                    return deliveryResult.Error is null
-                        ? Result.Failure("webhook_delivery_creation_failed", "Unable to create webhook delivery")
-                        : Result.Failure(deliveryResult.Error.Value);
-                }
-
-                var delivery = deliveryResult.Value!;
-                var saveResult = await this._storage.SaveAsync(delivery, ct).ConfigureAwait(false);
-                if (!saveResult.IsSuccess)
-                {
-                    return saveResult.Error is null
-                        ? Result.Failure("storage_write_failed", "Unable to save webhook delivery")
-                        : Result.Failure(saveResult.Error.Value);
-                }
-
-                this._metrics.IncrementCounter(
-                    "webhook.processed",
-                    1,
-                    [
-                        new("event", command.EventName.Value),
-                    ]);
-
-                // Step 4: Route event to registered handlers
-                this._tracing.AddEvent("webhook.route_to_handlers");
-                try
-                {
-                    var context = await this._contextFactory.CreateAsync(delivery, ct).ConfigureAwait(false);
-                    await this._eventRouter.RouteAsync(context, this._serviceProvider, ct).ConfigureAwait(false);
-                    this._tracing.AddEvent("webhook.handlers_completed");
-                }
-                catch (Exception routingEx)
-                {
-                    // Log routing errors but don't fail the webhook processing
-                    // The webhook has been successfully persisted at this point
-                    this._tracing.AddEvent("webhook.routing_error");
-                    this._metrics.IncrementCounter(
-                        "webhook.routing_error",
-                        1,
-                        [
-                            new("event", command.EventName.Value),
-                            new("exception_type", routingEx.GetType().Name),
-                        ]);
-
-                    // Note: We still return success because the webhook was persisted successfully
-                    // Handler failures should not cause webhook processing to fail
-                }
-
-                return Result.Success();
+                // Convert Result<PersistedWebhook> to Result
+                return pipelineResult.IsSuccess
+                    ? Result.Success()
+                    : Result.Failure(
+                        pipelineResult.Error ?? new Error(
+                            "webhook_processing_failed",
+                            "Webhook processing failed"));
             }, cancellationToken).ConfigureAwait(false);
 
             if (!result.IsSuccess)
@@ -250,5 +207,180 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
                 ]);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Step 1: Validate webhook signature.
+    /// UntrustedWebhook → ValidatedWebhook.
+    /// </summary>
+    /// <param name="untrusted">The untrusted webhook.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>ValidatedWebhook if signature is valid, otherwise failure.</returns>
+    private async Task<Result<ValidatedWebhook>> ValidateSignatureAsync(
+        UntrustedWebhook untrusted,
+        CancellationToken cancellationToken)
+    {
+        var command = untrusted.Command;
+
+        // Get the webhook secret from configuration
+        var secretResult = await this._appConfig.GetWebhookSecretAsync(cancellationToken).ConfigureAwait(false);
+        if (!secretResult.IsSuccess)
+        {
+            return Result<ValidatedWebhook>.Failure(
+                secretResult.Error ?? new Error(
+                    "webhook_secret_unavailable",
+                    "Unable to retrieve webhook secret for signature validation"));
+        }
+
+        var secret = secretResult.Value;
+        if (string.IsNullOrWhiteSpace(secret))
+        {
+            return Result<ValidatedWebhook>.Failure(
+                new Error("webhook_secret_empty", "Webhook secret is not configured"));
+        }
+
+        // Validate the signature
+        var isSignatureValid = this._signatureValidator.IsSignatureValid(
+            command.RawPayload,
+            secret,
+            command.Signature.Value);
+
+        if (!isSignatureValid)
+        {
+            return Result<ValidatedWebhook>.Failure(
+                new Error("webhook_signature_invalid", "Webhook signature validation failed"));
+        }
+
+        return Result<ValidatedWebhook>.Success(new ValidatedWebhook(untrusted));
+    }
+
+    /// <summary>
+    /// Step 2: Check for duplicate delivery (idempotency).
+    /// ValidatedWebhook → VerifiedUniqueWebhook.
+    /// </summary>
+    /// <param name="validated">The validated webhook.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>VerifiedUniqueWebhook if not duplicate, otherwise failure with duplicate code.</returns>
+    private async Task<Result<VerifiedUniqueWebhook>> CheckForDuplicateAsync(
+        ValidatedWebhook validated,
+        CancellationToken cancellationToken)
+    {
+        var command = validated.Command;
+
+        // Check if delivery already exists in storage
+        var existingResult = await this._storage.GetAsync(command.DeliveryId, cancellationToken).ConfigureAwait(false);
+        if (!existingResult.IsSuccess)
+        {
+            return Result<VerifiedUniqueWebhook>.Failure(
+                existingResult.Error ?? new Error(
+                    "storage_read_failed",
+                    "Unable to check for existing webhook delivery"));
+        }
+
+        if (existingResult.Value is not null)
+        {
+            // Special case: duplicate is a valid success scenario, but needs different handling
+            // We'll use a custom error code that the orchestrator recognizes
+            return Result<VerifiedUniqueWebhook>.Failure(
+                new Error(
+                    "webhook_duplicate_delivery",
+                    $"Webhook delivery {command.DeliveryId.Value} has already been processed"));
+        }
+
+        return Result<VerifiedUniqueWebhook>.Success(new VerifiedUniqueWebhook(validated));
+    }
+
+    /// <summary>
+    /// Step 3: Persist webhook delivery.
+    /// VerifiedUniqueWebhook → PersistedWebhook.
+    /// </summary>
+    /// <param name="unique">The verified unique webhook.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>PersistedWebhook if persistence succeeds, otherwise failure.</returns>
+    private async Task<Result<PersistedWebhook>> PersistDeliveryAsync(
+        VerifiedUniqueWebhook unique,
+        CancellationToken cancellationToken)
+    {
+        var command = unique.Command;
+
+        // Create webhook delivery using Result<T> pattern (from PR #4)
+        var deliveryResult = WebhookDelivery.Create(
+            command.DeliveryId,
+            command.EventName,
+            this._clock.UtcNow,
+            command.Payload,
+            command.InstallationId);
+
+        if (!deliveryResult.IsSuccess)
+        {
+            return Result<PersistedWebhook>.Failure(
+                deliveryResult.Error ?? new Error(
+                    "webhook_delivery_creation_failed",
+                    "Failed to create webhook delivery entity"));
+        }
+
+        var delivery = deliveryResult.Value!;
+
+        var saveResult = await this._storage.SaveAsync(delivery, cancellationToken).ConfigureAwait(false);
+        if (!saveResult.IsSuccess)
+        {
+            return Result<PersistedWebhook>.Failure(
+                saveResult.Error ?? new Error(
+                    "storage_write_failed",
+                    "Unable to save webhook delivery"));
+        }
+
+        // Mark delivery as processed in idempotency system for distributed duplicate prevention
+        var idempotencyKey = IdempotencyKey.FromDeliveryId(command.DeliveryId);
+        var acquired = await this._idempotency.TryAcquireAsync(
+            idempotencyKey,
+            timeToLive: TimeSpan.FromHours(24),
+            cancellationToken).ConfigureAwait(false);
+
+        // Note: We don't fail if idempotency key acquisition fails since the delivery
+        // has already been persisted. The storage check will prevent true duplicates.
+        // This is a defense-in-depth mechanism for distributed scenarios.
+
+        return Result<PersistedWebhook>.Success(new PersistedWebhook(unique, delivery));
+    }
+
+    /// <summary>
+    /// Step 4: Route to event handlers.
+    /// PersistedWebhook → PersistedWebhook (terminal step).
+    /// </summary>
+    /// <param name="persisted">The persisted webhook.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Same PersistedWebhook after routing completes.</returns>
+    private async Task<Result<PersistedWebhook>> RouteToHandlersAsync(
+        PersistedWebhook persisted,
+        CancellationToken cancellationToken)
+    {
+        var delivery = persisted.Delivery;
+
+        // Add tracing event for routing lifecycle
+        this._tracing.AddEvent("webhook.route_to_handlers.start");
+
+        try
+        {
+            var context = await this._contextFactory.CreateAsync(delivery, cancellationToken).ConfigureAwait(false);
+            await this._eventRouter.RouteAsync(context, this._serviceProvider, cancellationToken).ConfigureAwait(false);
+
+            this._tracing.AddEvent("webhook.route_to_handlers.completed");
+        }
+        catch (Exception ex)
+        {
+            // Note: Handler failures should not cause webhook processing to fail
+            // The webhook has been successfully persisted at this point
+            this._tracing.AddEvent("webhook.route_to_handlers.error");
+            this._metrics.IncrementCounter(
+                "webhook.routing_error",
+                1,
+                [
+                    new("event", delivery.EventName.Value),
+                    new("exception_type", ex.GetType().Name),
+                ]);
+        }
+
+        return Result<PersistedWebhook>.Success(persisted);
     }
 }

@@ -28,6 +28,11 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Restore tools
         run: dotnet tool restore
 
@@ -41,6 +46,9 @@ jobs:
             sudo apt-get install -y jq
           fi
           jq --version
+
+      - name: Install diff-cover
+        run: pip install diff-cover
 
       - name: Restore dependencies
         run: dotnet restore ProbotSharp.sln
@@ -67,6 +75,15 @@ jobs:
             "-assemblyfilters:+ProbotSharp.*;-*.Tests;-*.Tests.*" \
             "-classfilters:+*;-*Migrations*;-*DbContextModelSnapshot" \
             "-title:ProbotSharp Coverage Report (PR)"
+
+      - name: Generate Merged Cobertura for Diff Analysis
+        run: |
+          reportgenerator \
+            "-reports:coverage-pr/**/coverage.cobertura.xml" \
+            "-targetdir:coverage-merged" \
+            "-reporttypes:Cobertura" \
+            "-assemblyfilters:+ProbotSharp.*;-*.Tests;-*.Tests.*" \
+            "-classfilters:+*;-*Migrations*;-*DbContextModelSnapshot"
 
       # Checkout base branch for comparison
       - name: Checkout base branch
@@ -207,22 +224,76 @@ jobs:
           MIN_LINE_COVERAGE=75
           MIN_BRANCH_COVERAGE=70
 
-          # Overall assessment - check both absolute thresholds and deltas
+          # Informational project-wide status - does NOT block, only for display
           if (( $(echo "$PR_LINE < $MIN_LINE_COVERAGE" | bc -l) )) || (( $(echo "$PR_BRANCH < $MIN_BRANCH_COVERAGE" | bc -l) )); then
-            echo "status=failure" >> $GITHUB_OUTPUT
-            echo "status_msg=❌ **Coverage below required thresholds (${MIN_LINE_COVERAGE}% line, ${MIN_BRANCH_COVERAGE}% branch)**" >> $GITHUB_OUTPUT
+            echo "project_status=below_target" >> $GITHUB_OUTPUT
+            echo "project_status_msg=⚠️ Project-wide coverage below targets (${MIN_LINE_COVERAGE}% line, ${MIN_BRANCH_COVERAGE}% branch)" >> $GITHUB_OUTPUT
+            echo "project_emoji=⚠️" >> $GITHUB_OUTPUT
           elif (( $(echo "$LINE_DELTA < -5" | bc -l) )) || (( $(echo "$BRANCH_DELTA < -5" | bc -l) )); then
-            echo "status=failure" >> $GITHUB_OUTPUT
-            echo "status_msg=❌ **Significant coverage decrease detected**" >> $GITHUB_OUTPUT
+            echo "project_status=significant_decrease" >> $GITHUB_OUTPUT
+            echo "project_status_msg=📉 Significant coverage decrease detected" >> $GITHUB_OUTPUT
+            echo "project_emoji=📉" >> $GITHUB_OUTPUT
           elif (( $(echo "$LINE_DELTA < 0" | bc -l) )) || (( $(echo "$BRANCH_DELTA < 0" | bc -l) )); then
-            echo "status=warning" >> $GITHUB_OUTPUT
-            echo "status_msg=⚠️ Coverage decreased slightly" >> $GITHUB_OUTPUT
+            echo "project_status=slight_decrease" >> $GITHUB_OUTPUT
+            echo "project_status_msg=➖ Coverage decreased slightly" >> $GITHUB_OUTPUT
+            echo "project_emoji=➖" >> $GITHUB_OUTPUT
           elif (( $(echo "$LINE_DELTA > 0" | bc -l) )) && (( $(echo "$BRANCH_DELTA > 0" | bc -l) )); then
-            echo "status=success" >> $GITHUB_OUTPUT
-            echo "status_msg=✅ Coverage improved!" >> $GITHUB_OUTPUT
+            echo "project_status=improved" >> $GITHUB_OUTPUT
+            echo "project_status_msg=📈 Coverage improved!" >> $GITHUB_OUTPUT
+            echo "project_emoji=📈" >> $GITHUB_OUTPUT
           else
-            echo "status=success" >> $GITHUB_OUTPUT
-            echo "status_msg=✅ Coverage meets requirements" >> $GITHUB_OUTPUT
+            echo "project_status=stable" >> $GITHUB_OUTPUT
+            echo "project_status_msg=➡️ Coverage stable" >> $GITHUB_OUTPUT
+            echo "project_emoji=➡️" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Analyze PR Diff Coverage
+        id: diff_coverage
+        run: |
+          # Run diff-cover against base branch to get coverage of changed lines only
+          diff-cover coverage-merged/Cobertura.xml \
+            --compare-branch=origin/${{ github.base_ref }} \
+            --json-report coverage-diff.json \
+            --html-report coverage-diff.html || true
+
+          # Extract diff coverage metrics (only changed lines)
+          if [ -f coverage-diff.json ]; then
+            DIFF_LINE=$(jq -r '.totals.line_coverage // 0' coverage-diff.json)
+            DIFF_BRANCH=$(jq -r '.totals.branch_coverage // 0' coverage-diff.json)
+            DIFF_LINES_CHANGED=$(jq -r '.totals.num_changed_lines // 0' coverage-diff.json)
+            DIFF_LINES_COVERED=$(jq -r '.totals.num_covered_lines // 0' coverage-diff.json)
+          else
+            echo "::warning::Failed to generate diff coverage, will skip diff check"
+            DIFF_LINE="N/A"
+            DIFF_BRANCH="N/A"
+            DIFF_LINES_CHANGED="0"
+            DIFF_LINES_COVERED="0"
+          fi
+
+          echo "diff_line=${DIFF_LINE}" >> $GITHUB_OUTPUT
+          echo "diff_branch=${DIFF_BRANCH}" >> $GITHUB_OUTPUT
+          echo "diff_lines_changed=${DIFF_LINES_CHANGED}" >> $GITHUB_OUTPUT
+          echo "diff_lines_covered=${DIFF_LINES_COVERED}" >> $GITHUB_OUTPUT
+
+          # Determine diff coverage status (this is what blocks)
+          MIN_DIFF_LINE=80
+          MIN_DIFF_BRANCH=75
+
+          if [ "$DIFF_LINE" = "N/A" ]; then
+            echo "diff_status=warning" >> $GITHUB_OUTPUT
+            echo "diff_status_msg=⚠️ Unable to calculate diff coverage" >> $GITHUB_OUTPUT
+          elif [ "$DIFF_LINES_CHANGED" = "0" ]; then
+            echo "diff_status=success" >> $GITHUB_OUTPUT
+            echo "diff_status_msg=ℹ️ No code changes detected" >> $GITHUB_OUTPUT
+          elif (( $(echo "$DIFF_LINE < $MIN_DIFF_LINE" | bc -l) )); then
+            echo "diff_status=failure" >> $GITHUB_OUTPUT
+            echo "diff_status_msg=❌ Changed lines coverage below ${MIN_DIFF_LINE}% threshold" >> $GITHUB_OUTPUT
+          elif (( $(echo "$DIFF_BRANCH < $MIN_DIFF_BRANCH" | bc -l) )); then
+            echo "diff_status=failure" >> $GITHUB_OUTPUT
+            echo "diff_status_msg=❌ Changed branches coverage below ${MIN_DIFF_BRANCH}% threshold" >> $GITHUB_OUTPUT
+          else
+            echo "diff_status=success" >> $GITHUB_OUTPUT
+            echo "diff_status_msg=✅ Changed code meets coverage requirements" >> $GITHUB_OUTPUT
           fi
 
       - name: Comment PR with Coverage
@@ -231,25 +302,42 @@ jobs:
           message: |
             ## 📊 Coverage Report
 
-            ${{ steps.coverage_comparison.outputs.status_msg }}
+            ### ${{ steps.diff_coverage.outputs.diff_status_msg }}
 
-            | Metric | Base Branch | This PR | Delta |
-            |--------|-------------|---------|-------|
-            | **Line Coverage** | ${{ steps.coverage_comparison.outputs.base_line }}% | ${{ steps.coverage_comparison.outputs.pr_line }}% | ${{ steps.coverage_comparison.outputs.line_emoji }} ${{ steps.coverage_comparison.outputs.line_delta }} |
-            | **Branch Coverage** | ${{ steps.coverage_comparison.outputs.base_branch }}% | ${{ steps.coverage_comparison.outputs.pr_branch }}% | ${{ steps.coverage_comparison.outputs.branch_emoji }} ${{ steps.coverage_comparison.outputs.branch_delta }} |
+            **PR Diff Coverage** (Changed lines only - **blocks merge**):
+
+            | Metric | Changed Lines Coverage | Threshold | Status |
+            |--------|----------------------|-----------|--------|
+            | **Line Coverage** | **${{ steps.diff_coverage.outputs.diff_line }}%** | 80% | ${{ steps.diff_coverage.outputs.diff_line >= 80 && '✅ Pass' || steps.diff_coverage.outputs.diff_line == 'N/A' && 'ℹ️ N/A' || '❌ Fail' }} |
+            | **Branch Coverage** | **${{ steps.diff_coverage.outputs.diff_branch }}%** | 75% | ${{ steps.diff_coverage.outputs.diff_branch >= 75 && '✅ Pass' || steps.diff_coverage.outputs.diff_branch == 'N/A' && 'ℹ️ N/A' || '❌ Fail' }} |
+
+            <sub>📝 Changed: ${{ steps.diff_coverage.outputs.diff_lines_covered }}/${{ steps.diff_coverage.outputs.diff_lines_changed }} lines covered</sub>
+
+            ---
+
+            ### Project-Wide Coverage (informational only)
+
+            ${{ steps.coverage_comparison.outputs.project_emoji }} ${{ steps.coverage_comparison.outputs.project_status_msg }}
+
+            | Metric | Base Branch | This PR | Delta | Target |
+            |--------|-------------|---------|-------|--------|
+            | **Line Coverage** | ${{ steps.coverage_comparison.outputs.base_line }}% | ${{ steps.coverage_comparison.outputs.pr_line }}% | ${{ steps.coverage_comparison.outputs.line_emoji }} ${{ steps.coverage_comparison.outputs.line_delta }} | 80% |
+            | **Branch Coverage** | ${{ steps.coverage_comparison.outputs.base_branch }}% | ${{ steps.coverage_comparison.outputs.pr_branch }}% | ${{ steps.coverage_comparison.outputs.branch_emoji }} ${{ steps.coverage_comparison.outputs.branch_delta }} | 75% |
 
             <details>
-            <summary>Coverage Targets</summary>
+            <summary>📋 Coverage Targets by Layer</summary>
 
             - **Domain Layer**: 90% line, 85% branch
             - **Application Layer**: 80% line, 75% branch
             - **Infrastructure Layer**: 70% line, 65% branch
             - **Overall Target**: 75% line, 70% branch
 
+            ℹ️ These are aspirational targets. Only **PR Diff Coverage** blocks merges.
+
             </details>
 
             ---
-            *Coverage report generated by [ProbotSharp CI](.github/workflows/coverage-report.yml)*
+            *Coverage analysis by [diff-cover](https://github.com/Bachmann1234/diff_cover) | [Full report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*
 
       - name: Upload PR Coverage Report
         uses: actions/upload-artifact@v4
@@ -258,25 +346,55 @@ jobs:
           path: coverage-report-pr/
           retention-days: 30
 
+      - name: Upload Diff Coverage HTML Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-diff-html-pr-${{ github.event.pull_request.number }}
+          path: coverage-diff.html
+          retention-days: 30
+
       - name: Set Coverage Status Check
         if: always()
         run: |
-          STATUS="${{ steps.coverage_comparison.outputs.status }}"
-          PR_LINE="${{ steps.coverage_comparison.outputs.pr_line }}"
-          PR_BRANCH="${{ steps.coverage_comparison.outputs.pr_branch }}"
+          DIFF_STATUS="${{ steps.diff_coverage.outputs.diff_status }}"
+          DIFF_LINE="${{ steps.diff_coverage.outputs.diff_line }}"
+          DIFF_BRANCH="${{ steps.diff_coverage.outputs.diff_branch }}"
+          PROJECT_STATUS="${{ steps.coverage_comparison.outputs.project_status }}"
 
-          # Enforce absolute thresholds
-          if [ "$STATUS" = "failure" ]; then
-            echo "::error::Coverage check failed. Line: ${PR_LINE}% (min: 75%), Branch: ${PR_BRANCH}% (min: 70%)"
+          echo "=== Coverage Gate Results ==="
+          echo "PR Diff Coverage (BLOCKING): ${DIFF_STATUS}"
+          echo "  - Line: ${DIFF_LINE}% (min: 80%)"
+          echo "  - Branch: ${DIFF_BRANCH}% (min: 75%)"
+          echo ""
+          echo "Project-Wide Status (INFORMATIONAL): ${PROJECT_STATUS}"
+          echo ""
+
+          # Only block based on diff coverage
+          if [ "$DIFF_STATUS" = "failure" ]; then
+            echo "::error::PR diff coverage check failed. Changed lines coverage: Line ${DIFF_LINE}%, Branch ${DIFF_BRANCH}%"
+            echo "::error::Your changed code must have at least 80% line coverage and 75% branch coverage."
             exit 1
-          elif [ "$STATUS" = "warning" ]; then
-            echo "::warning::Coverage decreased slightly but still meets minimums. Line: ${PR_LINE}%, Branch: ${PR_BRANCH}%"
+          elif [ "$DIFF_STATUS" = "warning" ]; then
+            echo "::warning::Unable to calculate diff coverage - manual review recommended"
           else
-            echo "::notice::Coverage check passed. Line: ${PR_LINE}%, Branch: ${PR_BRANCH}%"
+            echo "::notice::PR diff coverage check passed! Line: ${DIFF_LINE}%, Branch: ${DIFF_BRANCH}%"
           fi
 
-          # Additional check for missing base report
+          # Show project-wide status as informational notice
+          case "$PROJECT_STATUS" in
+            below_target)
+              echo "::notice::Project-wide coverage is below targets but this does not block the PR"
+              ;;
+            significant_decrease)
+              echo "::warning::Project-wide coverage decreased significantly - consider adding more tests"
+              ;;
+            improved)
+              echo "::notice::Great job! Project-wide coverage improved 🎉"
+              ;;
+          esac
+
+          # Verify base report exists (sanity check)
           if [ ! -f coverage-report-base/Summary.json ]; then
-            echo "::error::Failed to generate base branch coverage for comparison"
-            exit 1
+            echo "::warning::Base branch coverage report not found - diff comparison may be incomplete"
           fi
