@@ -298,6 +298,57 @@ smee --url https://smee.io/abc123 --target http://localhost:8080/webhooks
 
 ## Development Workflow
 
+### Using Git Worktrees (Recommended)
+
+When contributing to ProbotSharp framework development, we strongly recommend using [Git worktrees](https://git-scm.com/docs/git-worktree) to keep your work isolated from the main branch.
+
+#### Why Worktrees?
+
+- Work on multiple features simultaneously without stashing
+- Keep main branch clean for quick bug fixes
+- Isolate dependencies and test environment per feature
+- Avoid accidentally committing to main
+
+#### Creating a Worktree
+
+```bash
+# Create a new worktree for your feature
+git worktree add .worktrees/feature-name -b feature-branch-name
+
+# Navigate to the worktree
+cd .worktrees/feature-name
+
+# Initialize git hooks (IMPORTANT: avoids husky.sh errors)
+dotnet husky install
+
+# Now you can work normally
+dotnet build
+dotnet test
+```
+
+> **Note:** The `dotnet husky install` step is crucial. It regenerates `.husky/_/husky.sh` which is gitignored. Without this, you'll see `.husky/_/husky.sh: No such file or directory` errors when committing (the errors are benign but annoying).
+
+#### Removing a Worktree
+
+After your PR is merged and you've pulled the changes to main:
+
+```bash
+# Navigate back to main directory
+cd ../../  # or wherever your main repo is
+
+# Remove the worktree
+git worktree remove .worktrees/feature-name
+
+# Delete the remote branch (if applicable)
+git push origin --delete feature-branch-name
+```
+
+#### Listing Active Worktrees
+
+```bash
+git worktree list
+```
+
 ### Replaying Webhooks Locally
 
 The `receive` command allows you to simulate webhook events without triggering them from GitHub. This is useful for rapid local development and debugging.
