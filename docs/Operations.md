@@ -619,7 +619,7 @@ curl -i https://api.github.com/app \
 **Resolution:**
 ```bash
 # Verify webhook secret is set
-echo $PROBOTSHARP_GITHUB_WEBHOOKSECRET
+echo $PROBOTSHARP_WEBHOOK_SECRET
 
 # Test webhook locally with smee.io
 docker-compose --profile smee up
@@ -998,7 +998,7 @@ cp .env.example .env
 
 # Edit .env with your GitHub App credentials
 # - PROBOTSHARP_GITHUB_APPID
-# - PROBOTSHARP_GITHUB_WEBHOOKSECRET
+# - PROBOTSHARP_WEBHOOK_SECRET
 # - PROBOTSHARP_GITHUB_PRIVATEKEY (or mount private-key.pem)
 
 # Start all services
