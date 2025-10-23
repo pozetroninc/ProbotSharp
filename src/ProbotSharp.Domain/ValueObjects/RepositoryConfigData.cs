@@ -58,6 +58,6 @@ public sealed record RepositoryConfigData
     /// </summary>
     public bool IsStale(TimeSpan ttl)
     {
-        return DateTimeOffset.UtcNow - this.LoadedAt > ttl;
+        return DateTimeOffset.UtcNow - this.LoadedAt >= ttl;
     }
 }

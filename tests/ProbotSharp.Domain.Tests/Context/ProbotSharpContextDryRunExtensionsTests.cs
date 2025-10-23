@@ -309,4 +309,109 @@ public class ProbotSharpContextDryRunExtensionsTests
         // Assert
         await act.Should().ThrowAsync<ArgumentException>();
     }
+
+    [Fact]
+    public void LogDryRun_WithNonSerializableParameters_ShouldFallbackToToString()
+    {
+        // Arrange
+        var context = CreateContext(isDryRun: true);
+        var action = "Test action";
+        var circularRef = new CircularReference();
+        circularRef.Self = circularRef; // Create circular reference to trigger serialization error
+
+        // Act
+        context.LogDryRun(action, circularRef);
+
+        // Assert - Should log with ToString fallback
+        _logger.Received(1).Log(
+            LogLevel.Information,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(o => o.ToString()!.Contains("[DRY-RUN]") && o.ToString()!.Contains(action)),
+            null,
+            Arg.Any<Func<object, Exception?, string>>());
+
+        // Should also log debug message about serialization failure
+        _logger.Received(1).Log(
+            LogLevel.Debug,
+            Arg.Any<EventId>(),
+            Arg.Any<object>(),
+            Arg.Any<Exception>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+
+    [Fact]
+    public void ThrowIfNotDryRun_WithEmptyMessage_ShouldThrow()
+    {
+        // Arrange
+        var context = CreateContext(isDryRun: true);
+
+        // Act
+        var act = () => context.ThrowIfNotDryRun(string.Empty);
+
+        // Assert
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task ExecuteOrLogAsync_WithResult_WithNullAction_ShouldThrow()
+    {
+        // Arrange
+        var context = CreateContext(isDryRun: false);
+
+        // Act
+        Func<Task> act = async () => await context.ExecuteOrLogAsync<int>("action", null!);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task ExecuteOrLogAsync_WithResult_WithEmptyDescription_ShouldThrow()
+    {
+        // Arrange
+        var context = CreateContext(isDryRun: false);
+
+        // Act
+        Func<Task> act = async () => await context.ExecuteOrLogAsync(
+            string.Empty,
+            async () => await Task.FromResult(42));
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task ExecuteOrLogAsync_WithResult_WithNullContext_ShouldThrow()
+    {
+        // Arrange
+        ProbotSharpContext? context = null;
+
+        // Act
+        Func<Task> act = async () => await context!.ExecuteOrLogAsync(
+            "action",
+            async () => await Task.FromResult(42));
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task ExecuteOrLogAsync_WithNullContext_ShouldThrow()
+    {
+        // Arrange
+        ProbotSharpContext? context = null;
+
+        // Act
+        Func<Task> act = async () => await context!.ExecuteOrLogAsync(
+            "action",
+            async () => await Task.CompletedTask);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    private class CircularReference
+    {
+        public CircularReference? Self { get; set; }
+    }
 }

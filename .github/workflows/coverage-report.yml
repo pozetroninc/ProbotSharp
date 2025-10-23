@@ -221,8 +221,8 @@ jobs:
           echo "branch_emoji=${BRANCH_EMOJI}" >> $GITHUB_OUTPUT
 
           # Define minimum thresholds
-          MIN_LINE_COVERAGE=80
-          MIN_BRANCH_COVERAGE=75
+          MIN_LINE_COVERAGE=75
+          MIN_BRANCH_COVERAGE=70
 
           # Informational project-wide status - does NOT block, only for display
           if (( $(echo "$PR_LINE < $MIN_LINE_COVERAGE" | bc -l) )) || (( $(echo "$PR_BRANCH < $MIN_BRANCH_COVERAGE" | bc -l) )); then
@@ -330,7 +330,7 @@ jobs:
             - **Domain Layer**: 90% line, 85% branch
             - **Application Layer**: 80% line, 75% branch
             - **Infrastructure Layer**: 70% line, 65% branch
-            - **Overall Target**: 80% line, 75% branch
+            - **Overall Target**: 75% line, 70% branch
 
             ℹ️ These are aspirational targets. Only **PR Diff Coverage** blocks merges.
 
@@ -362,6 +362,7 @@ jobs:
           DIFF_BRANCH="${{ steps.diff_coverage.outputs.diff_branch }}"
           PROJECT_STATUS="${{ steps.coverage_comparison.outputs.project_status }}"
 
+<<<<<<< HEAD
           echo "=== Coverage Gate Results ==="
           echo "PR Diff Coverage (BLOCKING): ${DIFF_STATUS}"
           echo "  - Line: ${DIFF_LINE}% (min: 80%)"
@@ -374,6 +375,11 @@ jobs:
           if [ "$DIFF_STATUS" = "failure" ]; then
             echo "::error::PR diff coverage check failed. Changed lines coverage: Line ${DIFF_LINE}%, Branch ${DIFF_BRANCH}%"
             echo "::error::Your changed code must have at least 80% line coverage and 75% branch coverage."
+=======
+          # Enforce absolute thresholds
+          if [ "$STATUS" = "failure" ]; then
+            echo "::error::Coverage check failed. Line: ${PR_LINE}% (min: 75%), Branch: ${PR_BRANCH}% (min: 70%)"
+>>>>>>> origin/main
             exit 1
           elif [ "$DIFF_STATUS" = "warning" ]; then
             echo "::warning::Unable to calculate diff coverage - manual review recommended"

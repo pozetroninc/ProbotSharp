@@ -14,7 +14,7 @@ using ProbotSharp.Adapters.Http.Webhooks;
 using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Inbound;
 using ProbotSharp.Domain.Services;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Adapter.Tests.Http;
 

@@ -21,7 +21,7 @@ using ProbotSharp.Application.WorkflowStates;
 using ProbotSharp.Domain.Entities;
 using ProbotSharp.Domain.Services;
 using ProbotSharp.Domain.ValueObjects;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Application.Tests.UseCases;
 
@@ -56,12 +56,13 @@ public class ProcessWebhookUseCaseTests
     public async Task ProcessAsync_WhenDeliveryExists_ShouldReturnSuccessWithoutSaving()
     {
         var command = CreateCommand();
-        var existingDelivery = WebhookDelivery.Create(
+        var deliveryResult = WebhookDelivery.Create(
             command.DeliveryId,
             command.EventName,
             DateTimeOffset.UtcNow,
             command.Payload,
             command.InstallationId);
+        var existingDelivery = deliveryResult.Value!;
 
         _appConfig.GetWebhookSecretAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(Result<string>.Success("test-secret")));

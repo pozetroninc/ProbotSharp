@@ -11,7 +11,7 @@ using ProbotSharp.Application.Models;
 using ProbotSharp.Application.Ports.Inbound;
 using ProbotSharp.Domain.ValueObjects;
 using ProbotSharp.Infrastructure.Adapters.GitHub;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 
 namespace ProbotSharp.Infrastructure.Tests.Adapters.GitHub;
 

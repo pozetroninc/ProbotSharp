@@ -9,6 +9,7 @@ using ProbotSharp.Application.Ports.Inbound;
 using ProbotSharp.Application.Ports.Outbound;
 using ProbotSharp.Application.Services;
 using ProbotSharp.Application.WorkflowStates;
+using ProbotSharp.Domain.Abstractions;
 using ProbotSharp.Domain.Entities;
 using ProbotSharp.Domain.Services;
 using ProbotSharp.Domain.ValueObjects;
@@ -303,23 +304,23 @@ public sealed class ProcessWebhookUseCase : IWebhookProcessingPort
     {
         var command = unique.Command;
 
-        WebhookDelivery delivery;
-        try
-        {
-            delivery = WebhookDelivery.Create(
-                command.DeliveryId,
-                command.EventName,
-                this._clock.UtcNow,
-                command.Payload,
-                command.InstallationId);
-        }
-        catch (ArgumentException ex)
+        // Create webhook delivery using Result<T> pattern (from PR #4)
+        var deliveryResult = WebhookDelivery.Create(
+            command.DeliveryId,
+            command.EventName,
+            this._clock.UtcNow,
+            command.Payload,
+            command.InstallationId);
+
+        if (!deliveryResult.IsSuccess)
         {
             return Result<PersistedWebhook>.Failure(
-                new Error(
+                deliveryResult.Error ?? new Error(
                     "webhook_delivery_creation_failed",
-                    $"Failed to create webhook delivery entity: {ex.Message}"));
+                    "Failed to create webhook delivery entity"));
         }
+
+        var delivery = deliveryResult.Value!;
 
         var saveResult = await this._storage.SaveAsync(delivery, cancellationToken).ConfigureAwait(false);
         if (!saveResult.IsSuccess)
