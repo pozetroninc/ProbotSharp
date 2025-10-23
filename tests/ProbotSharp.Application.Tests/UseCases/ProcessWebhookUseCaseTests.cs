@@ -372,12 +372,13 @@ public class ProcessWebhookUseCaseTests
         var validated = new ValidatedWebhook(untrusted);
 
         // Create existing delivery to simulate duplicate
-        var existingDelivery = WebhookDelivery.Create(
+        var existingDeliveryResult = WebhookDelivery.Create(
             command.DeliveryId,
             command.EventName,
             DateTimeOffset.UtcNow,
             command.Payload,
             command.InstallationId);
+        var existingDelivery = existingDeliveryResult.Value!;
 
         _storage.GetAsync(command.DeliveryId, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(Result<WebhookDelivery?>.Success(existingDelivery)));
@@ -585,11 +586,12 @@ public class ProcessWebhookUseCaseTests
 
     private WebhookDelivery CreateWebhookDelivery(ProcessWebhookCommand command)
     {
-        return WebhookDelivery.Create(
+        var result = WebhookDelivery.Create(
             command.DeliveryId,
             command.EventName,
             DateTimeOffset.UtcNow,
             command.Payload,
             command.InstallationId);
+        return result.Value!;
     }
 }

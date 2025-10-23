@@ -3,7 +3,7 @@
 namespace ProbotSharp.Domain.Tests.Abstractions;
 
 using FluentAssertions;
-using ProbotSharp.Shared.Abstractions;
+using ProbotSharp.Domain.Abstractions;
 using Xunit;
 
 public class ResultExtensionsTests

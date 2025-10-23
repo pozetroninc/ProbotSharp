@@ -13,7 +13,6 @@ using ProbotSharp.Domain.Abstractions;
 using ProbotSharp.Domain.Entities;
 using ProbotSharp.Domain.Services;
 using ProbotSharp.Domain.ValueObjects;
-using ProbotSharp.Shared.Abstractions;
 
 namespace ProbotSharp.Application.UseCases;
 

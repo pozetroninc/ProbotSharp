@@ -149,11 +149,12 @@ public class WorkflowStatesTests
 
     private static WebhookDelivery CreateTestDelivery()
     {
-        return WebhookDelivery.Create(
+        var result = WebhookDelivery.Create(
             DeliveryId.Create("test-delivery-123"),
             WebhookEventName.Create("issues"),
             DateTimeOffset.UtcNow,
             WebhookPayload.Create("{\"action\":\"opened\"}"),
             InstallationId.Create(12345L));
+        return result.Value!;
     }
 }

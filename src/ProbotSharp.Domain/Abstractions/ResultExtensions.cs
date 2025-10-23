@@ -1,6 +1,6 @@
 // Copyright (c) 2024 Pozitron Inc. All rights reserved.
 
-namespace ProbotSharp.Shared.Abstractions;
+namespace ProbotSharp.Domain.Abstractions;
 
 /// <summary>
 /// Railway-Oriented Programming extensions for Result&lt;T&gt; monad.
