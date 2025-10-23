@@ -24,7 +24,7 @@ A GitHub App built with [Probot Sharp](https://github.com/your-repo/probot-sharp
 
    Edit `.env` and set:
    - `PROBOTSHARP_GITHUB_APPID` - Your GitHub App ID
-   - `PROBOTSHARP_GITHUB_WEBHOOKSECRET` - Your webhook secret
+   - `PROBOTSHARP_WEBHOOK_SECRET` - Your webhook secret
    - `PROBOTSHARP_GITHUB_PRIVATEKEY` - Path to your private key file or base64-encoded key
 
 2. **Run the bot**
@@ -176,7 +176,7 @@ All configuration is done through environment variables (or `.env` file). See `.
 ### Required Configuration
 
 - `PROBOTSHARP_GITHUB_APPID` - Your GitHub App ID
-- `PROBOTSHARP_GITHUB_WEBHOOKSECRET` - Webhook secret for signature verification
+- `PROBOTSHARP_WEBHOOK_SECRET` - Webhook secret for signature verification
 - `PROBOTSHARP_GITHUB_PRIVATEKEY` - Private key (file path or base64-encoded)
 
 ### Optional Configuration

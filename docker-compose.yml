@@ -47,7 +47,7 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__ProbotSharp=Host=postgres;Port=5432;Database=${POSTGRES_DB:-probotsharp};Username=${POSTGRES_USER:-probotsharp};Password=${POSTGRES_PASSWORD:-dev-password}
       - ProbotSharp__GitHub__AppId=${PROBOTSHARP_GITHUB_APPID}
-      - ProbotSharp__GitHub__WebhookSecret=${PROBOTSHARP_GITHUB_WEBHOOKSECRET:-development}
+      - ProbotSharp__GitHub__WebhookSecret=${PROBOTSHARP_WEBHOOK_SECRET:-development}
       - ProbotSharp__GitHub__PrivateKey=${PROBOTSHARP_GITHUB_PRIVATEKEY}
       - ProbotSharp__GitHub__ClientId=${PROBOTSHARP_GITHUB_CLIENTID:-}
       - ProbotSharp__GitHub__ClientSecret=${PROBOTSHARP_GITHUB_CLIENTSECRET:-}
