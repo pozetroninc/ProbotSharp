@@ -478,7 +478,7 @@ public class ProcessWebhookUseCaseTests
         // Assert - Should return failure Result, not throw
         result.IsSuccess.Should().BeFalse();
         result.Error.Should().NotBeNull();
-        result.Error!.Value.Code.Should().Be("webhook_delivery_creation_failed");
+        result.Error!.Value.Code.Should().Be("webhook_delivery.invalid_delivered_at");
         result.Error!.Value.Message.Should().Contain("DeliveredAt");
 
         await _storage.DidNotReceive().SaveAsync(
