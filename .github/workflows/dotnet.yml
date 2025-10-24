@@ -91,10 +91,75 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  performance-trace:
+    name: Performance Trace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Install dotnet-trace
+        run: dotnet tool install --global dotnet-trace
+      - name: Restore Dependencies
+        run: dotnet restore ProbotSharp.sln
+      - name: Restore HelloWorldBot
+        run: dotnet restore examples/HelloWorldBot/HelloWorldBot.csproj
+      - name: Build HelloWorldBot
+        run: dotnet build examples/HelloWorldBot/HelloWorldBot.csproj -c Release --no-restore
+      - name: Create dummy GitHub App private key
+        run: |
+          cat > /tmp/trace-dummy-key.pem <<'EOF'
+          -----BEGIN RSA PRIVATE KEY-----
+          MIIEowIBAAKCAQEA0Z6Wh6dULwk3p0c2EhjRz1EOwN+R0EQJfzH3AwiBvT7nPzUG
+          ----END RSA PRIVATE KEY-----
+          EOF
+      - name: Run HelloWorldBot in background
+        env:
+          PROBOTSHARP__GITHUB__APPID: "123456"
+          PROBOTSHARP__WEBHOOK_SECRET: "test-secret-for-tracing"
+          PROBOTSHARP__GITHUB__PRIVATEKEYPATH: "/tmp/trace-dummy-key.pem"
+          TMPDIR: /tmp
+          DOTNET_DiagnosticPorts: ""
+        run: |
+          dotnet run --project examples/HelloWorldBot/HelloWorldBot.csproj -c Release > /tmp/app.log 2>&1 &
+          echo $! > app.pid
+          echo "Started HelloWorldBot with PID $(cat app.pid)"
+      - name: Wait for app to initialize
+        run: sleep 15
+      - name: Check if process is running
+        run: |
+          PID=$(cat app.pid)
+          echo "Checking if PID $PID is running..."
+          ps -p $PID || (echo "Process not running!" && cat /tmp/app.log && exit 1)
+          echo "Process is alive and running"
+          echo "--- Checking dotnet-trace can see the process ---"
+          dotnet-trace ps || true
+          echo "--- Listing diagnostic sockets in /tmp ---"
+          ls -la /tmp/dotnet-diagnostic-* || echo "No diagnostic sockets found"
+          echo "--- App output so far ---"
+          cat /tmp/app.log
+      - name: Collect performance trace
+        env:
+          TMPDIR: /tmp
+        run: |
+          echo "Collecting trace from HelloWorldBot process..."
+          echo "TMPDIR is set to: $TMPDIR"
+          dotnet-trace collect --name HelloWorldBot --providers Microsoft-Windows-DotNETRuntime --duration 00:00:30 -o trace.nettrace || (echo "Trace collection failed!" && exit 1)
+      - name: Convert trace to Speedscope format
+        run: dotnet-trace convert trace.nettrace --format Speedscope
+      - name: Upload flamegraph artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flamegraph
+          path: trace.speedscope.json
+          retention-days: 7
+
   all-tests-passed:
     name: All Tests Passed
     runs-on: ubuntu-latest
-    needs: [build-test, verify-links, verify-markdown-code, test-examples]
+    needs: [build-test, verify-links, verify-markdown-code, test-examples, performance-trace]
     steps:
       - run: echo "✅ All tests passed successfully!"
 
