@@ -67,6 +67,8 @@ Following **Hexagonal Architecture** and **Cloud Design Patterns**, adapter conf
 
 ### Idempotency Adapters
 
+> **Probot Comparison:** Unlike Probot (Node.js), which requires manual deduplication tracking, ProbotSharp provides automatic webhook deduplication via the idempotency adapter. This can be disabled by removing `app.UseIdempotency()` from your Program.cs if you need Probot-compatible behavior.
+
 | Provider | Use Case | Dependencies | Data Loss on Restart |
 |----------|----------|--------------|---------------------|
 | **InMemory** | Development, testing, single instance | None | Yes |
