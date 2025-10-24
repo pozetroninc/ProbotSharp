@@ -102,6 +102,8 @@ jobs:
           dotnet-version: 8.0.x
       - name: Install dotnet-trace
         run: dotnet tool install --global dotnet-trace
+      - name: Add dotnet tools to PATH
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
       - name: Restore Dependencies
         run: dotnet restore ProbotSharp.sln
       - name: Restore HelloWorldBot
@@ -146,7 +148,7 @@ jobs:
         run: |
           echo "Collecting trace from HelloWorldBot process..."
           echo "TMPDIR is set to: $TMPDIR"
-          dotnet-trace collect --name HelloWorldBot --providers Microsoft-Windows-DotNETRuntime --duration 00:00:30 -o trace.nettrace || (echo "Trace collection failed!" && exit 1)
+          dotnet-trace collect --name HelloWorldBot --profile cpu-sampling --duration 00:00:30 -o trace.nettrace || (echo "Trace collection failed!" && exit 1)
       - name: Convert trace to Speedscope format
         run: dotnet-trace convert trace.nettrace --format Speedscope
       - name: Upload flamegraph artifact
