@@ -108,14 +108,34 @@ jobs:
         run: dotnet restore examples/HelloWorldBot/HelloWorldBot.csproj
       - name: Build HelloWorldBot
         run: dotnet build examples/HelloWorldBot/HelloWorldBot.csproj -c Release --no-restore
+      - name: Create dummy GitHub App private key
+        run: |
+          cat > /tmp/trace-dummy-key.pem <<'EOF'
+          -----BEGIN RSA PRIVATE KEY-----
+          MIIEowIBAAKCAQEA0Z6Wh6dULwk3p0c2EhjRz1EOwN+R0EQJfzH3AwiBvT7nPzUG
+          ----END RSA PRIVATE KEY-----
+          EOF
       - name: Run HelloWorldBot in background
+        env:
+          PROBOTSHARP__GITHUB__APPID: "123456"
+          PROBOTSHARP__WEBHOOK_SECRET: "test-secret-for-tracing"
+          PROBOTSHARP__GITHUB__PRIVATEKEYPATH: "/tmp/trace-dummy-key.pem"
         run: |
           dotnet run --project examples/HelloWorldBot/HelloWorldBot.csproj -c Release &
           echo $! > app.pid
       - name: Wait for app to initialize
         run: sleep 15
+      - name: Check if process is running
+        run: |
+          PID=$(cat app.pid)
+          echo "Checking if PID $PID is running..."
+          ps -p $PID || (echo "Process not running!" && exit 1)
+          echo "Process is alive and running"
       - name: Collect performance trace
-        run: dotnet-trace collect --pid $(cat app.pid) --duration 00:00:30 -o trace.nettrace
+        run: |
+          PID=$(cat app.pid)
+          echo "Collecting trace from PID $PID..."
+          dotnet-trace collect --pid $PID --duration 00:00:30 -o trace.nettrace
       - name: Convert trace to Speedscope format
         run: dotnet-trace convert trace.nettrace --format Speedscope
       - name: Upload flamegraph artifact
