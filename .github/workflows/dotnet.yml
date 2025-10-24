@@ -104,6 +104,8 @@ jobs:
         run: dotnet tool install --global dotnet-trace
       - name: Restore Dependencies
         run: dotnet restore ProbotSharp.sln
+      - name: Restore HelloWorldBot
+        run: dotnet restore examples/HelloWorldBot/HelloWorldBot.csproj
       - name: Build HelloWorldBot
         run: dotnet build examples/HelloWorldBot/HelloWorldBot.csproj -c Release --no-restore
       - name: Run HelloWorldBot in background
