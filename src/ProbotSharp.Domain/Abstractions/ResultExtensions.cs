@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Pozitron Inc. All rights reserved.
+// Copyright (c) ProbotSharp Contributors.
 
 namespace ProbotSharp.Domain.Abstractions;
 
