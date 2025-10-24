@@ -121,21 +121,24 @@ jobs:
           PROBOTSHARP__WEBHOOK_SECRET: "test-secret-for-tracing"
           PROBOTSHARP__GITHUB__PRIVATEKEYPATH: "/tmp/trace-dummy-key.pem"
         run: |
-          dotnet run --project examples/HelloWorldBot/HelloWorldBot.csproj -c Release &
+          dotnet run --project examples/HelloWorldBot/HelloWorldBot.csproj -c Release > /tmp/app.log 2>&1 &
           echo $! > app.pid
+          echo "Started HelloWorldBot with PID $(cat app.pid)"
       - name: Wait for app to initialize
         run: sleep 15
       - name: Check if process is running
         run: |
           PID=$(cat app.pid)
           echo "Checking if PID $PID is running..."
-          ps -p $PID || (echo "Process not running!" && exit 1)
+          ps -p $PID || (echo "Process not running!" && cat /tmp/app.log && exit 1)
           echo "Process is alive and running"
+          echo "--- App output so far ---"
+          cat /tmp/app.log
       - name: Collect performance trace
         run: |
           PID=$(cat app.pid)
           echo "Collecting trace from PID $PID..."
-          dotnet-trace collect --pid $PID --duration 00:00:30 -o trace.nettrace
+          dotnet-trace collect --pid $PID --duration 00:00:30 -o trace.nettrace || (echo "Trace collection failed! App logs:" && cat /tmp/app.log && ps aux | grep -i dotnet && exit 1)
       - name: Convert trace to Speedscope format
         run: dotnet-trace convert trace.nettrace --format Speedscope
       - name: Upload flamegraph artifact
