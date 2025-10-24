@@ -91,10 +91,42 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  performance-trace:
+    name: Performance Trace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Install dotnet-trace
+        run: dotnet tool install --global dotnet-trace
+      - name: Restore Dependencies
+        run: dotnet restore ProbotSharp.sln
+      - name: Build HelloWorldBot
+        run: dotnet build examples/HelloWorldBot/HelloWorldBot.csproj -c Release --no-restore
+      - name: Run HelloWorldBot in background
+        run: |
+          dotnet run --project examples/HelloWorldBot/HelloWorldBot.csproj -c Release &
+          echo $! > app.pid
+      - name: Wait for app to initialize
+        run: sleep 15
+      - name: Collect performance trace
+        run: dotnet-trace collect --pid $(cat app.pid) --duration 00:00:30 -o trace.nettrace
+      - name: Convert trace to Speedscope format
+        run: dotnet-trace convert trace.nettrace --format Speedscope
+      - name: Upload flamegraph artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flamegraph
+          path: trace.speedscope.json
+          retention-days: 7
+
   all-tests-passed:
     name: All Tests Passed
     runs-on: ubuntu-latest
-    needs: [build-test, verify-links, verify-markdown-code, test-examples]
+    needs: [build-test, verify-links, verify-markdown-code, test-examples, performance-trace]
     steps:
       - run: echo "✅ All tests passed successfully!"
 
