@@ -398,6 +398,7 @@ While Probot-Sharp maintains API familiarity with the original Node.js Probot fr
 | **Resilience** | Manual retry logic | Built-in circuit breakers, retry policies with exponential backoff, and timeout handling |
 | **Testing** | Jest/Mocha | xUnit with strong mocking (NSubstitute), property-based testing support |
 | **Dependency Injection** | Manual wiring | First-class DI container with lifetime scoping |
+| **Webhook Deduplication** | Manual (app responsibility) | Automatic `UseIdempotency()` middleware with dual-layer strategy (database + distributed lock) |
 
 **Key Architectural Benefits:**
 

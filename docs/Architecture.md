@@ -1294,6 +1294,8 @@ Shared -> Domain -> Application -> Adapters (Inbound) -> Bootstraps
 
 ## Idempotency Strategy
 
+**Architectural Difference from Probot (Node.js):** Probot does NOT automatically deduplicate webhooks - the application is responsible for tracking processed delivery IDs. ProbotSharp takes a more opinionated approach with built-in deduplication.
+
 Probot-Sharp implements a dual-layer idempotency strategy to prevent duplicate webhook processing:
 
 ### Layer 1: Database-Level (IWebhookStoragePort)
@@ -1377,6 +1379,8 @@ DLQ items should trigger alerts for operational teams to investigate and resolve
 **Status**: Accepted
 
 **Context**: GitHub may deliver the same webhook multiple times. The application must prevent duplicate processing while supporting horizontal scaling across multiple instances.
+
+**Note:** This differs from Probot (Node.js), which does not provide automatic deduplication and requires applications to implement their own tracking of processed delivery IDs (typically using Redis or a database).
 
 **Decision**: Implement a dual-layer idempotency strategy:
 1. Database-level: DeliveryId as primary key in IWebhookStoragePort

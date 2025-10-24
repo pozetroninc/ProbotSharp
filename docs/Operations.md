@@ -925,6 +925,14 @@ curl http://localhost:8080/health
 - Average processing time
 - Retry attempts distribution
 
+**Idempotency Metrics:**
+- Idempotency hits (duplicate deliveries blocked)
+- Idempotency misses (unique deliveries processed)
+- Idempotency errors (lock acquisition failures)
+- Duplicate delivery rate (hits / total deliveries)
+
+> **Note:** High duplicate rates may indicate GitHub infrastructure issues, webhook delivery retries (normal for failures), or load balancer misconfiguration. Duplicates are expected when GitHub retries failed webhook deliveries (status codes 500, 503), during network timeouts, or after application restarts during request handling.
+
 ### Alert Thresholds
 
 | Metric | Warning | Critical |

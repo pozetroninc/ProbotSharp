@@ -235,6 +235,28 @@ builder.Configuration.AddSecretsManager(
     });
 ```
 
+## Middleware Configuration
+
+### Idempotency Middleware
+
+**Enabled by default in all production examples.** This prevents duplicate webhook processing.
+
+```text
+// Production (recommended):
+app.UseIdempotency();
+
+// Development/testing only (Probot-compatible):
+// Comment out for Probot Node.js behavioral compatibility
+```
+
+**Trade-offs:**
+- ✅ **Enabled:** Prevents accidental duplicate actions in production
+- ❌ **Disabled:** Matches Probot (Node.js) behavior for integration testing
+
+**See Also:**
+- [Architecture docs - Idempotency Strategy](Architecture.md#idempotency-strategy)
+- [Probot-to-ProbotSharp Guide - Section 7](Probot-to-ProbotSharp-Guide.md#7-webhook-deduplication-architectural-difference)
+
 ## Complete Example
 
 Here's a production-ready `appsettings.json` following all best practices:

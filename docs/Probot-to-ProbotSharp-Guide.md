@@ -293,6 +293,123 @@ services.AddTransient<IGitHubOAuthPort, GitHubOAuthClient>();
 
 ---
 
+### 7) Webhook Deduplication (Architectural Difference)
+
+**This is a critical behavioral difference between Probot and ProbotSharp.**
+
+#### Probot (Node.js) Behavior
+
+```javascript
+// Probot does NOT deduplicate webhooks automatically
+export default (app) => {
+  app.on("push", async (context) => {
+    // This will be called for EVERY webhook delivery
+    // Even if GitHub sends the same delivery ID multiple times
+    app.log.info("Processing push", context.id);
+  });
+};
+```
+
+- Does NOT automatically deduplicate webhooks by delivery ID
+- All webhook deliveries are processed, including duplicates
+- Application is responsible for implementing deduplication if needed
+- Common pattern: Store processed delivery IDs in Redis/database
+
+#### ProbotSharp (.NET) Behavior
+
+```text
+// ProbotSharp deduplicates by default (production safety)
+var app = builder.Build();
+app.UseProbotSharpMiddleware();
+app.UseIdempotency(); // Prevents duplicate processing
+```
+
+- Automatic deduplication via `UseIdempotency()` middleware (enabled by default in all examples)
+- Prevents duplicate processing for horizontal scaling and reliability
+- Uses dual-layer strategy: database-level + distributed lock (Redis/in-memory)
+- Configured via `Adapters.Idempotency` in appsettings.json
+
+#### How to Disable (Probot-Compatible Behavior)
+
+```text
+var app = builder.Build();
+app.UseProbotSharpMiddleware();
+// Comment out or remove this line for Probot-compatible behavior:
+// app.UseIdempotency();
+```
+
+#### When to Disable Idempotency
+
+**Disable for:**
+- ✅ Integration testing against Probot behavior
+- ✅ Apps that implement custom deduplication logic
+- ✅ Single-instance deployments where duplicates are acceptable
+- ✅ Testing scenarios that verify duplicate handling
+
+**Enable for (RECOMMENDED for production):**
+- ✅ Production deployments
+- ✅ Horizontal scaling (multiple instances)
+- ✅ High-reliability requirements
+- ✅ Preventing accidental duplicate actions
+
+#### Configuration
+
+**In-Memory (Development/Testing):**
+```json
+{
+  "ProbotSharp": {
+    "Adapters": {
+      "Idempotency": {
+        "Provider": "InMemory",
+        "Options": {
+          "ExpirationHours": "24"
+        }
+      }
+    }
+  }
+}
+```
+
+**Redis (Production):**
+```json
+{
+  "ProbotSharp": {
+    "Adapters": {
+      "Idempotency": {
+        "Provider": "Redis",
+        "Options": {
+          "ConnectionString": "localhost:6379",
+          "ExpirationHours": "24"
+        }
+      }
+    }
+  }
+}
+```
+
+**Database (Enterprise):**
+```json
+{
+  "ProbotSharp": {
+    "Adapters": {
+      "Idempotency": {
+        "Provider": "Database",
+        "Options": {
+          "ExpirationHours": "24"
+        }
+      }
+    }
+  }
+}
+```
+
+**See Also:**
+- [Architecture docs - Idempotency Strategy](Architecture.md#idempotency-strategy)
+- [Architecture docs - ADR-002: Dual-Layer Idempotency](Architecture.md#adr-002-dual-layer-idempotency-strategy)
+- [Adapter Configuration Guide](AdapterConfiguration.md)
+
+---
+
 Refer to `docs/Architecture.md`, `docs/Extensions.md`, and `docs/LocalDevelopment.md` for deeper dives and runnable examples.
 
 
