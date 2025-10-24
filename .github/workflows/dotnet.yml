@@ -138,7 +138,7 @@ jobs:
         run: |
           PID=$(cat app.pid)
           echo "Collecting trace from PID $PID..."
-          dotnet-trace collect --pid $PID --duration 00:00:30 -o trace.nettrace || (echo "Trace collection failed! App logs:" && cat /tmp/app.log && ps aux | grep -i dotnet && exit 1)
+          dotnet-trace collect --pid $PID --providers Microsoft-Windows-DotNETRuntime --duration 00:00:30 -o trace.nettrace || (echo "Trace collection failed! App logs:" && cat /tmp/app.log && ps aux | grep -i dotnet && exit 1)
       - name: Convert trace to Speedscope format
         run: dotnet-trace convert trace.nettrace --format Speedscope
       - name: Upload flamegraph artifact
