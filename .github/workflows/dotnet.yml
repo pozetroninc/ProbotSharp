@@ -121,6 +121,7 @@ jobs:
           PROBOTSHARP__WEBHOOK_SECRET: "test-secret-for-tracing"
           PROBOTSHARP__GITHUB__PRIVATEKEYPATH: "/tmp/trace-dummy-key.pem"
           TMPDIR: /tmp
+          DOTNET_DiagnosticPorts: ""
         run: |
           dotnet run --project examples/HelloWorldBot/HelloWorldBot.csproj -c Debug > /tmp/app.log 2>&1 &
           echo $! > app.pid
@@ -133,6 +134,10 @@ jobs:
           echo "Checking if PID $PID is running..."
           ps -p $PID || (echo "Process not running!" && cat /tmp/app.log && exit 1)
           echo "Process is alive and running"
+          echo "--- Checking dotnet-trace can see the process ---"
+          dotnet-trace ps || true
+          echo "--- Listing diagnostic sockets in /tmp ---"
+          ls -la /tmp/dotnet-diagnostic-* || echo "No diagnostic sockets found"
           echo "--- App output so far ---"
           cat /tmp/app.log
       - name: Collect performance trace
