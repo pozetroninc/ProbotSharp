@@ -120,6 +120,7 @@ jobs:
           PROBOTSHARP__GITHUB__APPID: "123456"
           PROBOTSHARP__WEBHOOK_SECRET: "test-secret-for-tracing"
           PROBOTSHARP__GITHUB__PRIVATEKEYPATH: "/tmp/trace-dummy-key.pem"
+          TMPDIR: /tmp
         run: |
           dotnet run --project examples/HelloWorldBot/HelloWorldBot.csproj -c Debug > /tmp/app.log 2>&1 &
           echo $! > app.pid
@@ -135,9 +136,12 @@ jobs:
           echo "--- App output so far ---"
           cat /tmp/app.log
       - name: Collect performance trace
+        env:
+          TMPDIR: /tmp
         run: |
           PID=$(cat app.pid)
           echo "Collecting trace from PID $PID..."
+          echo "TMPDIR is set to: $TMPDIR"
           dotnet-trace collect --pid $PID --providers Microsoft-Windows-DotNETRuntime --duration 00:00:30 -o trace.nettrace || (echo "Trace collection failed! App logs:" && cat /tmp/app.log && ps aux | grep -i dotnet && exit 1)
       - name: Convert trace to Speedscope format
         run: dotnet-trace convert trace.nettrace --format Speedscope
