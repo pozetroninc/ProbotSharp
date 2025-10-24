@@ -107,7 +107,7 @@ jobs:
       - name: Restore HelloWorldBot
         run: dotnet restore examples/HelloWorldBot/HelloWorldBot.csproj
       - name: Build HelloWorldBot
-        run: dotnet build examples/HelloWorldBot/HelloWorldBot.csproj -c Release --no-restore
+        run: dotnet build examples/HelloWorldBot/HelloWorldBot.csproj -c Debug --no-restore
       - name: Create dummy GitHub App private key
         run: |
           cat > /tmp/trace-dummy-key.pem <<'EOF'
@@ -121,7 +121,7 @@ jobs:
           PROBOTSHARP__WEBHOOK_SECRET: "test-secret-for-tracing"
           PROBOTSHARP__GITHUB__PRIVATEKEYPATH: "/tmp/trace-dummy-key.pem"
         run: |
-          dotnet run --project examples/HelloWorldBot/HelloWorldBot.csproj -c Release > /tmp/app.log 2>&1 &
+          dotnet run --project examples/HelloWorldBot/HelloWorldBot.csproj -c Debug > /tmp/app.log 2>&1 &
           echo $! > app.pid
           echo "Started HelloWorldBot with PID $(cat app.pid)"
       - name: Wait for app to initialize
