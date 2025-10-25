@@ -102,6 +102,8 @@ jobs:
           dotnet-version: 8.0.x
       - name: Install dotnet-trace
         run: dotnet tool install --global dotnet-trace
+      - name: Add dotnet tools to PATH
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
       - name: Restore Dependencies
         run: dotnet restore ProbotSharp.sln
       - name: Restore HelloWorldBot
@@ -128,6 +130,36 @@ jobs:
           echo "Started HelloWorldBot with PID $(cat app.pid)"
       - name: Wait for app to initialize
         run: sleep 15
+      - name: Send webhook workload in background
+        env:
+          WEBHOOK_SECRET: "test-secret-for-tracing"
+        run: |
+          # Start sending webhooks in background while trace runs
+          for i in {1..20}; do
+            # Send issues.opened webhook
+            PAYLOAD=$(cat fixtures/issues-opened.json)
+            SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | sed 's/^.* //')
+            curl -X POST http://localhost:5000/api/github/webhooks \
+              -H "Content-Type: application/json" \
+              -H "X-GitHub-Event: issues" \
+              -H "X-GitHub-Delivery: $(uuidgen)" \
+              -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
+              -d "$PAYLOAD" &
+
+            # Send pull_request.opened webhook
+            PAYLOAD=$(cat fixtures/pull-request-opened.json)
+            SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | sed 's/^.* //')
+            curl -X POST http://localhost:5000/api/github/webhooks \
+              -H "Content-Type: application/json" \
+              -H "X-GitHub-Event: pull_request" \
+              -H "X-GitHub-Delivery: $(uuidgen)" \
+              -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
+              -d "$PAYLOAD" &
+
+            sleep 0.5
+          done &
+
+          echo "Webhook workload started in background"
       - name: Check if process is running
         run: |
           PID=$(cat app.pid)
@@ -146,15 +178,85 @@ jobs:
         run: |
           echo "Collecting trace from HelloWorldBot process..."
           echo "TMPDIR is set to: $TMPDIR"
-          dotnet-trace collect --name HelloWorldBot --providers Microsoft-Windows-DotNETRuntime --duration 00:00:30 -o trace.nettrace || (echo "Trace collection failed!" && exit 1)
+          dotnet-trace collect --name HelloWorldBot --profile cpu-sampling --duration 00:00:30 -o trace.nettrace || (echo "Trace collection failed!" && exit 1)
       - name: Convert trace to Speedscope format
         run: dotnet-trace convert trace.nettrace --format Speedscope
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Restore baseline from cache
+        id: restore-baseline
+        uses: actions/cache/restore@v4
+        with:
+          path: perf-baseline.json
+          key: perf-baseline-main-${{ github.sha }}
+          restore-keys: |
+            perf-baseline-main-
+      - name: Analyze trace and compare to baseline
+        run: |
+          if [ -f perf-baseline.json ]; then
+            echo "Comparing to baseline from main branch"
+            python3 scripts/analyze-trace.py trace.speedscope.json \
+              --output perf-metrics.json \
+              --markdown perf-summary.md \
+              --baseline perf-baseline.json
+          else
+            echo "No baseline found, generating initial metrics"
+            python3 scripts/analyze-trace.py trace.speedscope.json \
+              --output perf-metrics.json \
+              --markdown perf-summary.md
+          fi
+      - name: Save to performance history
+        run: |
+          mkdir -p perf-history
+          TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)
+          COMMIT_SHORT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+          cp perf-metrics.json "perf-history/${TIMESTAMP}-${COMMIT_SHORT}.json"
+          # Keep only last 100 entries
+          ls -t perf-history/*.json 2>/dev/null | tail -n +101 | xargs -r rm || true
+          echo "Saved metrics to perf-history/${TIMESTAMP}-${COMMIT_SHORT}.json"
+      - name: Display performance report
+        run: |
+          echo "## Performance Trace Analysis" >> $GITHUB_STEP_SUMMARY
+          cat perf-summary.md >> $GITHUB_STEP_SUMMARY
+      - name: Post performance report to PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Create comment body with performance summary
+          COMMENT_BODY="## 📊 Performance Trace Report
+
+          $(cat perf-summary.md)
+
+          ---
+          [View full trace](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) | [Download flamegraph](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
+          # Post comment to PR
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "$COMMENT_BODY"
+      - name: Update baseline cache
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: perf-metrics.json
+          key: perf-baseline-main-${{ github.sha }}
       - name: Upload flamegraph artifact
         uses: actions/upload-artifact@v4
         with:
           name: flamegraph
           path: trace.speedscope.json
           retention-days: 7
+      - name: Upload performance metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-metrics
+          path: |
+            perf-metrics.json
+            perf-summary.md
+            perf-history/
+          retention-days: 30
 
   all-tests-passed:
     name: All Tests Passed
