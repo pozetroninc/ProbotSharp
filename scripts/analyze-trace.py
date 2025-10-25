@@ -16,7 +16,7 @@ import json
 import sys
 import argparse
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -37,19 +37,49 @@ def parse_speedscope(trace_path):
             'thread_count': 0
         }
 
-    # Calculate total samples across all profiles
+    # Calculate total samples/time across all profiles
+    # Speedscope supports two profile types: 'sampled' and 'evented'
     total_samples = 0
     frame_samples = Counter()
 
     for profile in profiles:
-        samples = profile.get('samples', [])
-        weights = profile.get('weights', [])
+        profile_type = profile.get('type', 'sampled')
 
-        # Count samples per frame
-        for i, frame_idx in enumerate(samples):
-            weight = weights[i] if i < len(weights) else 1
-            total_samples += weight
-            frame_samples[frame_idx] += weight
+        if profile_type == 'sampled':
+            # Sampled format: samples and weights arrays
+            samples = profile.get('samples', [])
+            weights = profile.get('weights', [])
+
+            # Count samples per frame
+            for i, frame_idx in enumerate(samples):
+                weight = weights[i] if i < len(weights) else 1
+                total_samples += weight
+                frame_samples[frame_idx] += weight
+
+        elif profile_type == 'evented':
+            # Evented format: open/close events with timestamps
+            events = profile.get('events', [])
+            start_value = profile.get('startValue', 0)
+            end_value = profile.get('endValue', 0)
+
+            # Track stack and calculate time for each frame
+            stack = []  # Stack of (frame_idx, open_time)
+
+            for event in events:
+                event_type = event.get('type')
+                frame_idx = event.get('frame')
+                timestamp = event.get('at')
+
+                if event_type == 'O':  # Open frame
+                    stack.append((frame_idx, timestamp))
+                elif event_type == 'C':  # Close frame
+                    # Match with most recent open of same frame
+                    if stack and stack[-1][0] == frame_idx:
+                        _, open_time = stack.pop()
+                        duration = timestamp - open_time
+                        # Convert duration to samples (treat 1ms = 1 sample for consistency)
+                        frame_samples[frame_idx] += duration
+                        total_samples += duration
 
     # Estimate CPU time (1ms per sample is typical for dotnet-trace cpu-sampling)
     cpu_time_ms = total_samples * 1.0
@@ -111,7 +141,7 @@ def parse_speedscope(trace_path):
         'gc_percentage': round(gc_percentage, 2),
         'alloc_samples': alloc_samples,
         'alloc_percentage': round(alloc_percentage, 2),
-        'timestamp': datetime.utcnow().isoformat() + 'Z'
+        'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
     }
 
 
