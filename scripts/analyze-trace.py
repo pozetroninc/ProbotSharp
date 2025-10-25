@@ -20,6 +20,67 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+def format_duration(ms):
+    """Convert milliseconds to human-readable format.
+
+    Examples:
+        125 ms -> "125 ms"
+        2500 ms -> "2.5 sec"
+        65000 ms -> "1.1 min"
+        2472055 ms -> "41.2 min"
+    """
+    if ms < 1000:
+        return f"{ms:.0f} ms"
+    elif ms < 60000:
+        return f"{ms / 1000:.1f} sec"
+    elif ms < 3600000:
+        return f"{ms / 60000:.1f} min"
+    else:
+        return f"{ms / 3600000:.1f} hours"
+
+
+def format_percentage_bar(percentage, width=20):
+    """Create visual progress bar for percentages.
+
+    Example:
+        40.0 -> "████████░░░░░░░░░░░░ 40.0%"
+    """
+    filled = int((percentage / 100.0) * width)
+    empty = width - filled
+    bar = '█' * filled + '░' * empty
+    return f"{bar} {percentage:.1f}%"
+
+
+def categorize_method(method_name):
+    """Categorize method as app code, framework, or noise.
+
+    Returns:
+        'app': ProbotSharp application code
+        'framework': .NET framework code (potentially interesting)
+        'noise': Threading/wait methods, meta-frames (not actionable)
+    """
+    method_lower = method_name.lower()
+
+    # Noise: Thread management, meta-frames, unmanaged code
+    noise_patterns = [
+        'threads', 'non-activities', 'process64', 'unmanaged_code_time',
+        'threading.portablethreadpool', 'threading.lowlevellifosemaphore',
+        'threading.semaphoreslim', 'threading.monitor.wait',
+        'threading.manualreseteventslim', 'threading.thread.sleep',
+        'waithandle', 'taskawaiter'
+    ]
+
+    if any(pattern in method_lower for pattern in noise_patterns):
+        return 'noise'
+
+    # App code: ProbotSharp namespaces
+    if 'probotsharp' in method_lower:
+        return 'app'
+
+    # Everything else is framework (might be interesting)
+    return 'framework'
+
+
 def parse_speedscope(trace_path):
     """Parse Speedscope JSON format and extract metrics."""
     with open(trace_path, 'r') as f:
@@ -111,7 +172,8 @@ def parse_speedscope(trace_path):
                 'method': method_path,
                 'samples': sample_count,
                 'cpu_time_ms': sample_count * 1.0,
-                'percentage': round(percentage, 2)
+                'percentage': round(percentage, 2),
+                'category': categorize_method(method_path)
             })
 
     # Analyze threads
@@ -146,53 +208,165 @@ def parse_speedscope(trace_path):
 
 
 def generate_markdown(metrics, baseline=None):
-    """Generate markdown summary of metrics."""
-    lines = ['# Performance Trace Analysis\n']
+    """Generate user-friendly markdown summary of metrics."""
+    lines = []
 
     if 'error' in metrics:
+        lines.append('# Performance Trace Analysis\n')
         lines.append(f"**Error:** {metrics['error']}\n")
         return '\n'.join(lines)
 
-    # Summary stats
-    lines.append('## Summary\n')
-    lines.append(f"- **Total Samples:** {metrics['total_samples']:,}")
-    lines.append(f"- **Estimated CPU Time:** {metrics['cpu_time_ms']:.2f} ms")
-    lines.append(f"- **Thread Count:** {metrics['thread_count']}")
-    lines.append(f"- **GC Activity:** {metrics['gc_percentage']:.2f}% of samples")
+    # ===== VERDICT & SUMMARY =====
+    lines.append('## 📊 Performance Summary\n')
+
+    # Determine verdict based on baseline comparison
+    verdict_emoji = '✅'
+    verdict_text = 'No significant performance impact detected'
+
+    if baseline and 'cpu_time_ms' in baseline and baseline['cpu_time_ms'] > 0:
+        cpu_diff = metrics['cpu_time_ms'] - baseline['cpu_time_ms']
+        cpu_pct = (cpu_diff / baseline['cpu_time_ms']) * 100
+
+        if cpu_pct > 15:
+            verdict_emoji = '🔴'
+            verdict_text = f'Performance regression detected (+{cpu_pct:.1f}%)'
+        elif cpu_pct > 5:
+            verdict_emoji = '⚠️'
+            verdict_text = f'Minor performance impact (+{cpu_pct:.1f}%)'
+        elif cpu_pct < -5:
+            verdict_emoji = '🚀'
+            verdict_text = f'Performance improvement detected ({cpu_pct:.1f}%)'
+        else:
+            verdict_emoji = '✅'
+            verdict_text = f'Performance within normal variance ({cpu_pct:+.1f}%)'
+
+    lines.append(f"**Verdict:** {verdict_emoji} {verdict_text}")
+    lines.append(f"**Trace Duration:** {format_duration(metrics['cpu_time_ms'])}")
+    lines.append(f"**Test Workload:** 40 webhook requests (20 issues, 20 pull requests)\n")
+    lines.append('---\n')
+
+    # ===== KEY METRICS TABLE =====
+    lines.append('### Key Metrics\n')
+    lines.append('| Metric | Value | Visual |')
+    lines.append('|--------|-------|--------|')
+
+    # CPU Time
+    cpu_time_human = format_duration(metrics['cpu_time_ms'])
+    cpu_bar = format_percentage_bar(100, width=20)
+    lines.append(f"| Total CPU Time | {cpu_time_human} | `{cpu_bar}` |")
+
+    # Thread Count
+    lines.append(f"| Thread Count | {metrics['thread_count']} threads | |")
+
+    # GC Activity
+    gc_pct = metrics['gc_percentage']
+    gc_bar = format_percentage_bar(min(gc_pct, 100), width=20)
+    gc_status = '✅ Minimal' if gc_pct < 5 else ('⚠️ Moderate' if gc_pct < 15 else '🔴 High')
+    lines.append(f"| GC Activity | {gc_pct:.2f}% {gc_status} | `{gc_bar}` |")
+
     lines.append('')
 
-    # Baseline comparison
-    if baseline and 'total_samples' in baseline and baseline['total_samples'] > 0:
-        lines.append('## Comparison to Baseline (main)\n')
+    # ===== BASELINE COMPARISON (if available) =====
+    if baseline and 'cpu_time_ms' in baseline and baseline['cpu_time_ms'] > 0:
+        lines.append('### 📈 Baseline Comparison\n')
 
-        cpu_diff = metrics['cpu_time_ms'] - baseline.get('cpu_time_ms', 0)
-        cpu_pct = (cpu_diff / baseline.get('cpu_time_ms', 1)) * 100
+        cpu_diff = metrics['cpu_time_ms'] - baseline['cpu_time_ms']
+        cpu_pct = (cpu_diff / baseline['cpu_time_ms']) * 100
 
         if cpu_diff > 0:
-            emoji = '🔴' if cpu_pct > 10 else '🟡'
-            lines.append(f"{emoji} **CPU Time:** +{cpu_diff:.2f} ms (+{cpu_pct:.1f}%)")
+            trend = '↑'
+            emoji = '🔴' if cpu_pct > 15 else ('⚠️' if cpu_pct > 5 else '🟡')
+            lines.append(f"{emoji} **CPU Time vs Baseline (main):** +{format_duration(abs(cpu_diff))} ({trend} +{cpu_pct:.1f}%)")
         elif cpu_diff < 0:
-            emoji = '🟢'
-            lines.append(f"{emoji} **CPU Time:** {cpu_diff:.2f} ms ({cpu_pct:.1f}%)")
+            trend = '↓'
+            emoji = '🚀'
+            lines.append(f"{emoji} **CPU Time vs Baseline (main):** -{format_duration(abs(cpu_diff))} ({trend} {cpu_pct:.1f}%)")
         else:
-            lines.append(f"⚪ **CPU Time:** No change")
+            trend = '→'
+            lines.append(f"✅ **CPU Time vs Baseline (main):** No change ({trend})")
+
+        # Add interpretation
+        if abs(cpu_pct) < 5:
+            lines.append('\n_Changes are within normal variance - no action needed._')
+        elif cpu_pct > 15:
+            lines.append('\n_Significant regression detected - consider investigating hotspots below._')
 
         lines.append('')
 
-    # Top hotspots
-    lines.append('## Top 10 Hotspot Methods\n')
-    lines.append('| Method | Samples | CPU Time | % |')
-    lines.append('|--------|---------|----------|---|')
+    lines.append('---\n')
+
+    # ===== APPLICATION HOTSPOTS =====
+    app_methods = [m for m in metrics['top_methods'] if m['category'] == 'app']
+
+    if app_methods:
+        lines.append('### 🔥 Application Hotspots\n')
+        lines.append('_Top methods in ProbotSharp code consuming CPU:_\n')
+        lines.append('| Method | CPU Time | Percentage |')
+        lines.append('|--------|----------|------------|')
+
+        for method in app_methods[:5]:  # Show top 5 app methods
+            method_name = method['method']
+            if len(method_name) > 60:
+                method_name = method_name[:57] + '...'
+
+            cpu_time = format_duration(method['cpu_time_ms'])
+            pct_bar = format_percentage_bar(method['percentage'], width=15)
+            lines.append(f"| `{method_name}` | {cpu_time} | `{pct_bar}` |")
+
+        lines.append('')
+    else:
+        lines.append('### 🔥 Application Hotspots\n')
+        lines.append('_No significant application hotspots detected. Most time spent in framework/wait operations._\n')
+
+    # ===== FRAMEWORK METHODS (collapsible) =====
+    framework_methods = [m for m in metrics['top_methods'] if m['category'] == 'framework']
+
+    if framework_methods:
+        lines.append('<details>')
+        lines.append('<summary>📚 Framework Methods (click to expand)</summary>\n')
+        lines.append('| Method | CPU Time | Percentage |')
+        lines.append('|--------|----------|------------|')
+
+        for method in framework_methods[:10]:
+            method_name = method['method']
+            if len(method_name) > 70:
+                method_name = method_name[:67] + '...'
+
+            cpu_time = format_duration(method['cpu_time_ms'])
+            pct_bar = format_percentage_bar(method['percentage'], width=15)
+            lines.append(f"| `{method_name}` | {cpu_time} | `{pct_bar}` |")
+
+        lines.append('\n</details>\n')
+
+    # ===== FULL DETAILS (collapsible) =====
+    lines.append('<details>')
+    lines.append('<summary>📋 Full Method Details (all categories)</summary>\n')
+    lines.append('| Method | Category | CPU Time | Percentage |')
+    lines.append('|--------|----------|----------|------------|')
 
     for method in metrics['top_methods']:
         method_name = method['method']
-        # Truncate very long method names
-        if len(method_name) > 80:
-            method_name = method_name[:77] + '...'
+        if len(method_name) > 60:
+            method_name = method_name[:57] + '...'
 
-        lines.append(f"| `{method_name}` | {method['samples']:,} | {method['cpu_time_ms']:.1f} ms | {method['percentage']:.1f}% |")
+        category_badge = {'app': '🎯 App', 'framework': '📦 Framework', 'noise': '🔇 Noise'}
+        category = category_badge.get(method['category'], method['category'])
+        cpu_time = format_duration(method['cpu_time_ms'])
+        pct_bar = format_percentage_bar(method['percentage'], width=12)
+        lines.append(f"| `{method_name}` | {category} | {cpu_time} | `{pct_bar}` |")
 
-    lines.append('')
+    lines.append('\n</details>\n')
+
+    # ===== TECHNICAL DETAILS (collapsible) =====
+    lines.append('<details>')
+    lines.append('<summary>🔍 Technical Details</summary>\n')
+    lines.append(f"- **Total Samples:** {metrics['total_samples']:,.0f}")
+    lines.append(f"- **CPU Time (raw):** {metrics['cpu_time_ms']:.2f} ms")
+    lines.append(f"- **Sample Rate:** 1ms intervals")
+    lines.append(f"- **Trace Format:** Speedscope evented")
+    lines.append(f"- **GC Samples:** {metrics['gc_samples']:,.0f} ({metrics['gc_percentage']:.2f}%)")
+    lines.append(f"- **Timestamp:** {metrics['timestamp']}")
+    lines.append('\n</details>')
 
     return '\n'.join(lines)
 
