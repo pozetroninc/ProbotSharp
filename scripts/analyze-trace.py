@@ -92,8 +92,8 @@ def parse_speedscope(trace_path):
     if not frames or not profiles:
         return {
             'error': 'Empty trace file - no frames or profiles found',
-            'total_samples': 0,
-            'cpu_time_ms': 0,
+            'wall_clock_ms': 0,
+            'total_cpu_time_ms': 0,
             'top_methods': [],
             'thread_count': 0
         }
@@ -102,6 +102,7 @@ def parse_speedscope(trace_path):
     # Speedscope supports two profile types: 'sampled' and 'evented'
     total_samples = 0
     frame_samples = Counter()
+    profile_results = []  # Store per-profile metrics for evented format
 
     for profile in profiles:
         profile_type = profile.get('type', 'sampled')
@@ -123,8 +124,12 @@ def parse_speedscope(trace_path):
             start_value = profile.get('startValue', 0)
             end_value = profile.get('endValue', 0)
 
-            # Track stack and calculate time for each frame
-            stack = []  # Stack of (frame_idx, open_time)
+            # Track inclusive and exclusive times separately
+            frame_inclusive = Counter()  # Total time in frame (including children)
+            frame_exclusive = Counter()  # Time in frame only (excluding children)
+            frame_count = Counter()      # Number of times frame appears
+
+            stack = []  # Stack of (frame_idx, open_time, children_time)
 
             for event in events:
                 event_type = event.get('type')
@@ -132,24 +137,71 @@ def parse_speedscope(trace_path):
                 timestamp = event.get('at')
 
                 if event_type == 'O':  # Open frame
-                    stack.append((frame_idx, timestamp))
+                    stack.append((frame_idx, timestamp, 0.0))
+
                 elif event_type == 'C':  # Close frame
-                    # Match with most recent open of same frame
                     if stack and stack[-1][0] == frame_idx:
-                        _, open_time = stack.pop()
-                        duration = timestamp - open_time
-                        # Convert duration to samples (treat 1ms = 1 sample for consistency)
-                        frame_samples[frame_idx] += duration
-                        total_samples += duration
+                        _, open_time, children_time = stack.pop()
 
-    # Estimate CPU time (1ms per sample is typical for dotnet-trace cpu-sampling)
-    cpu_time_ms = total_samples * 1.0
+                        # Calculate times
+                        inclusive = timestamp - open_time
+                        exclusive = inclusive - children_time
 
-    # Get top hotspot methods (frames with most samples)
-    top_frames = frame_samples.most_common(10)
+                        # Update frame stats
+                        frame_inclusive[frame_idx] += inclusive
+                        frame_exclusive[frame_idx] += exclusive
+                        frame_count[frame_idx] += 1
+
+                        # Propagate inclusive time to parent
+                        if stack:
+                            parent_frame, parent_open, parent_children = stack[-1]
+                            stack[-1] = (parent_frame, parent_open, parent_children + inclusive)
+
+            # Calculate profile duration (Step 2)
+            profile_duration = end_value - start_value
+
+            # Store profile result for aggregation (Step 2)
+            profile_results.append({
+                'duration_ms': profile_duration,
+                'frame_inclusive': frame_inclusive,
+                'frame_exclusive': frame_exclusive,
+                'frame_count': frame_count
+            })
+
+    # Aggregate results across all profiles (Step 3)
+    if profile_results:
+        # Evented format: aggregate from profile_results
+        # Wall-clock = max duration across all threads (they run concurrently)
+        wall_clock_ms = max(p['duration_ms'] for p in profile_results)
+
+        # Aggregate frame times across all threads
+        total_inclusive = Counter()
+        total_exclusive = Counter()
+        total_count = Counter()
+
+        for result in profile_results:
+            for frame_idx, time in result['frame_inclusive'].items():
+                total_inclusive[frame_idx] += time
+            for frame_idx, time in result['frame_exclusive'].items():
+                total_exclusive[frame_idx] += time
+            for frame_idx, count in result['frame_count'].items():
+                total_count[frame_idx] += count
+
+        # Total CPU time = sum of all exclusive times
+        total_cpu_time_ms = sum(total_exclusive.values())
+    else:
+        # Sampled format or empty: use old behavior for backward compatibility
+        wall_clock_ms = total_samples * 1.0
+        total_cpu_time_ms = total_samples * 1.0
+        total_exclusive = frame_samples
+        total_inclusive = frame_samples
+        total_count = Counter()
+
+    # Get top hotspot methods (frames with most exclusive time)
+    top_frames = total_exclusive.most_common(10)
     top_methods = []
 
-    for frame_idx, sample_count in top_frames:
+    for frame_idx, exclusive_time in top_frames:
         if frame_idx < len(frames):
             frame = frames[frame_idx]
             frame_name = frame.get('name', 'Unknown')
@@ -165,38 +217,44 @@ def parse_speedscope(trace_path):
             else:
                 method_path = frame_name
 
-            # Calculate percentage
-            percentage = (sample_count / total_samples * 100) if total_samples > 0 else 0
+            # Get both inclusive and exclusive times
+            inclusive_time = total_inclusive[frame_idx]
+
+            # Calculate percentages against wall-clock duration
+            inclusive_pct = (inclusive_time / wall_clock_ms * 100) if wall_clock_ms > 0 else 0
+            exclusive_pct = (exclusive_time / wall_clock_ms * 100) if wall_clock_ms > 0 else 0
 
             top_methods.append({
                 'method': method_path,
-                'samples': sample_count,
-                'cpu_time_ms': sample_count * 1.0,
-                'percentage': round(percentage, 2),
+                'inclusive_ms': round(inclusive_time, 2),
+                'exclusive_ms': round(exclusive_time, 2),
+                'inclusive_pct': round(inclusive_pct, 2),
+                'exclusive_pct': round(exclusive_pct, 2),
+                'samples': total_count[frame_idx],
                 'category': categorize_method(method_path)
             })
 
     # Analyze threads
     thread_count = len(profiles)
 
-    # Look for GC and allocation patterns
+    # Look for GC and allocation patterns (use exclusive time)
     gc_samples = 0
     alloc_samples = 0
 
-    for frame_idx, count in frame_samples.items():
+    for frame_idx, exclusive_time in total_exclusive.items():
         if frame_idx < len(frames):
             frame_name = frames[frame_idx].get('name', '').lower()
             if 'gc' in frame_name or 'garbage' in frame_name:
-                gc_samples += count
+                gc_samples += exclusive_time
             if 'alloc' in frame_name:
-                alloc_samples += count
+                alloc_samples += exclusive_time
 
-    gc_percentage = (gc_samples / total_samples * 100) if total_samples > 0 else 0
-    alloc_percentage = (alloc_samples / total_samples * 100) if total_samples > 0 else 0
+    gc_percentage = (gc_samples / wall_clock_ms * 100) if wall_clock_ms > 0 else 0
+    alloc_percentage = (alloc_samples / wall_clock_ms * 100) if wall_clock_ms > 0 else 0
 
     return {
-        'total_samples': total_samples,
-        'cpu_time_ms': round(cpu_time_ms, 2),
+        'wall_clock_ms': round(wall_clock_ms, 2),
+        'total_cpu_time_ms': round(total_cpu_time_ms, 2),
         'top_methods': top_methods,
         'thread_count': thread_count,
         'gc_samples': gc_samples,
@@ -223,25 +281,25 @@ def generate_markdown(metrics, baseline=None):
     verdict_emoji = '✅'
     verdict_text = 'No significant performance impact detected'
 
-    if baseline and 'cpu_time_ms' in baseline and baseline['cpu_time_ms'] > 0:
-        cpu_diff = metrics['cpu_time_ms'] - baseline['cpu_time_ms']
-        cpu_pct = (cpu_diff / baseline['cpu_time_ms']) * 100
+    if baseline and 'wall_clock_ms' in baseline and baseline['wall_clock_ms'] > 0:
+        wall_diff = metrics['wall_clock_ms'] - baseline['wall_clock_ms']
+        wall_pct = (wall_diff / baseline['wall_clock_ms']) * 100
 
-        if cpu_pct > 15:
+        if wall_pct > 15:
             verdict_emoji = '🔴'
-            verdict_text = f'Performance regression detected (+{cpu_pct:.1f}%)'
-        elif cpu_pct > 5:
+            verdict_text = f'Performance regression detected (+{wall_pct:.1f}%)'
+        elif wall_pct > 5:
             verdict_emoji = '⚠️'
-            verdict_text = f'Minor performance impact (+{cpu_pct:.1f}%)'
-        elif cpu_pct < -5:
+            verdict_text = f'Minor performance impact (+{wall_pct:.1f}%)'
+        elif wall_pct < -5:
             verdict_emoji = '🚀'
-            verdict_text = f'Performance improvement detected ({cpu_pct:.1f}%)'
+            verdict_text = f'Performance improvement detected ({wall_pct:.1f}%)'
         else:
             verdict_emoji = '✅'
-            verdict_text = f'Performance within normal variance ({cpu_pct:+.1f}%)'
+            verdict_text = f'Performance within normal variance ({wall_pct:+.1f}%)'
 
     lines.append(f"**Verdict:** {verdict_emoji} {verdict_text}")
-    lines.append(f"**Trace Duration:** {format_duration(metrics['cpu_time_ms'])}")
+    lines.append(f"**Trace Duration:** {format_duration(metrics['wall_clock_ms'])}")
     lines.append(f"**Test Workload:** 40 webhook requests (20 issues, 20 pull requests)\n")
     lines.append('---\n')
 
@@ -251,7 +309,7 @@ def generate_markdown(metrics, baseline=None):
     lines.append('|--------|-------|--------|')
 
     # CPU Time
-    cpu_time_human = format_duration(metrics['cpu_time_ms'])
+    cpu_time_human = format_duration(metrics['total_cpu_time_ms'])
     cpu_bar = format_percentage_bar(100, width=20)
     lines.append(f"| Total CPU Time | {cpu_time_human} | `{cpu_bar}` |")
 
@@ -309,9 +367,9 @@ def generate_markdown(metrics, baseline=None):
             if len(method_name) > 60:
                 method_name = method_name[:57] + '...'
 
-            cpu_time = format_duration(method['cpu_time_ms'])
-            pct_bar = format_percentage_bar(method['percentage'], width=15)
-            lines.append(f"| `{method_name}` | {cpu_time} | `{pct_bar}` |")
+            excl_time = format_duration(method['exclusive_ms'])
+            pct_bar = format_percentage_bar(method['exclusive_pct'], width=15)
+            lines.append(f"| `{method_name}` | {excl_time} | `{pct_bar}` |")
 
         lines.append('')
     else:
@@ -332,9 +390,9 @@ def generate_markdown(metrics, baseline=None):
             if len(method_name) > 70:
                 method_name = method_name[:67] + '...'
 
-            cpu_time = format_duration(method['cpu_time_ms'])
-            pct_bar = format_percentage_bar(method['percentage'], width=15)
-            lines.append(f"| `{method_name}` | {cpu_time} | `{pct_bar}` |")
+            excl_time = format_duration(method['exclusive_ms'])
+            pct_bar = format_percentage_bar(method['exclusive_pct'], width=15)
+            lines.append(f"| `{method_name}` | {excl_time} | `{pct_bar}` |")
 
         lines.append('\n</details>\n')
 
@@ -351,17 +409,17 @@ def generate_markdown(metrics, baseline=None):
 
         category_badge = {'app': '🎯 App', 'framework': '📦 Framework', 'noise': '🔇 Noise'}
         category = category_badge.get(method['category'], method['category'])
-        cpu_time = format_duration(method['cpu_time_ms'])
-        pct_bar = format_percentage_bar(method['percentage'], width=12)
-        lines.append(f"| `{method_name}` | {category} | {cpu_time} | `{pct_bar}` |")
+        excl_time = format_duration(method['exclusive_ms'])
+        pct_bar = format_percentage_bar(method['exclusive_pct'], width=12)
+        lines.append(f"| `{method_name}` | {category} | {excl_time} | `{pct_bar}` |")
 
     lines.append('\n</details>\n')
 
     # ===== TECHNICAL DETAILS (collapsible) =====
     lines.append('<details>')
     lines.append('<summary>🔍 Technical Details</summary>\n')
-    lines.append(f"- **Total Samples:** {metrics['total_samples']:,.0f}")
-    lines.append(f"- **CPU Time (raw):** {metrics['cpu_time_ms']:.2f} ms")
+    lines.append(f"- **Wall-Clock Duration:** {metrics['wall_clock_ms']:.2f} ms")
+    lines.append(f"- **Total CPU Time:** {metrics['total_cpu_time_ms']:.2f} ms")
     lines.append(f"- **Sample Rate:** 1ms intervals")
     lines.append(f"- **Trace Format:** Speedscope evented")
     lines.append(f"- **GC Samples:** {metrics['gc_samples']:,.0f} ({metrics['gc_percentage']:.2f}%)")
