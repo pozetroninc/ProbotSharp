@@ -220,6 +220,22 @@ jobs:
         run: |
           echo "## Performance Trace Analysis" >> $GITHUB_STEP_SUMMARY
           cat perf-summary.md >> $GITHUB_STEP_SUMMARY
+      - name: Post performance report to PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Create comment body with performance summary
+          COMMENT_BODY="## 📊 Performance Trace Report
+
+          $(cat perf-summary.md)
+
+          ---
+          [View full trace](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) | [Download flamegraph](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
+          # Post comment to PR
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "$COMMENT_BODY"
       - name: Update baseline cache
         if: github.ref == 'refs/heads/main'
         uses: actions/cache/save@v4
